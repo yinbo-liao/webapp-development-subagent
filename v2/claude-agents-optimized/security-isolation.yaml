@@ -1,0 +1,68 @@
+# Security Isolation — Sandbox and Access Control Rules
+
+version: "1.0"
+
+# Security sandbox rules per agent
+agents:
+  security-auditor:
+    access: read_all_files
+    write: [".learnings/security/**", "audit-reports/**"]
+    block_write: ["src/**", "vault/02_reference/**"]
+    run_commands: ["git log", "git diff", "npm audit", "pip-audit", "trufflehog"]
+    block_commands: ["git push", "git commit", "npm publish", "pip install", "rm -rf"]
+
+  project-planner:
+    access: read_all_files
+    write: ["vault/01_thinking/**", "vault/03_creating/**", "progress.txt"]
+    block_write: ["src/**"]
+    run_commands: all
+    block_commands: ["git push --force", "rm -rf"]
+
+  fastapi-architect:
+    access: read_all_files
+    write: ["src/api/**", "src/db/**", "tests/**"]
+    block_write: ["src/frontend/**", ".env*", "*.secret*"]
+    run_commands: ["pytest", "ruff", "mypy", "alembic"]
+    block_commands: ["git push", "rm -rf"]
+
+  vite-react-developer:
+    access: read_all_files
+    write: ["src/components/**", "src/hooks/**", "src/routes/**"]
+    block_write: ["src/api/**", ".env*"]
+    run_commands: ["npx vitest", "npx eslint", "npx tsc"]
+    block_commands: ["git push", "rm -rf"]
+
+  test-automator:
+    access: read_all_files
+    write: ["test-reports/**", ".learnings/ERRORS.md"]
+    block_write: ["src/**"]
+    run_commands: ["pytest", "npx vitest", "npx playwright"]
+    block_commands: ["git push", "rm -rf"]
+
+  web-deployer:
+    access: read_all_files
+    write: ["deployment-logs/**", "vault/04_published/deployment-logs/**"]
+    block_write: ["src/**"]
+    run_commands: all_deployment
+    block_commands: ["rm -rf /", "DROP TABLE", "DELETE FROM"]
+
+# Global security rules
+global:
+  - pattern: "\\b(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{20,}|AKIA[A-Z0-9]{16})\\b"
+    action: block
+    message: "API key or secret detected. Use environment variables."
+
+  - pattern: "\\b(DROP TABLE|DELETE FROM|TRUNCATE)\\b"
+    action: warn
+    message: "Destructive SQL detected. Verify against production database."
+
+  - pattern: "\\b(eval\\(|exec\\(|system\\(|subprocess\\.call\\()\\b"
+    action: warn
+    message: "Potentially dangerous function call. Review for command injection."
+
+  # Never allow these regardless of agent
+  blocked_globally:
+    - "curl.*|.*bash.*>.*/dev/tcp"     # Reverse shell pattern
+    - "git push --force origin main"    # Force push to main
+    - "chmod 777"                       # World-writable permissions
+    - ":(){ :|:& };:"                   # Fork bomb

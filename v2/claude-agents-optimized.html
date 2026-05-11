@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code SubAgent Command Center — PARL Agent Mesh v2.6.0</title>
+<style>
+:root{--bg:#0f1117;--surface:#161b22;--surface2:#1c2128;--border:#30363d;--text:#c9d1d9;--text2:#8b949e;--accent:#58a6ff;--green:#3fb950;--yellow:#d29922;--red:#f85149;--purple:#a371f7;--orange:#f0883e;--teal:#39d353;--pink:#db61a2;--fastapi:#009688;--react:#61dafb;--vite:#646cff;--font:system-ui,-apple-system,sans-serif;--mono:'Cascadia Code','Fira Code',Consolas,monospace}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+.header{background:linear-gradient(135deg,var(--surface),var(--surface2));border-bottom:1px solid var(--border);padding:20px 32px;position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}
+.header-content{max-width:1500px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--purple),var(--accent));border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#fff}
+.logo-text h1{font-size:18px;font-weight:600;color:#fff}
+.logo-text p{font-size:12px;color:var(--text2)}
+.nav-tabs{display:flex;gap:4px;padding:0 32px;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto}
+.nav-tab{padding:12px 18px;border:none;background:0 0;color:var(--text2);cursor:pointer;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.nav-tab:hover{color:var(--text)}
+.nav-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(88,166,255,.05)}
+.main{max-width:1500px;margin:0 auto;padding:24px 32px}
+.panel{display:none}
+.panel.active{display:block}
+
+/* Cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px;margin-bottom:32px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.card-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.card-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.card-icon.planner{background:rgba(163,113,247,.15)}
+.card-icon.backend{background:rgba(0,150,136,.15)}
+.card-icon.frontend{background:rgba(97,218,251,.15)}
+.card-icon.security{background:rgba(248,81,73,.15)}
+.card-icon.testing{background:rgba(63,185,80,.15)}
+.card-icon.deploy{background:rgba(211,153,34,.15)}
+.card-title{font-size:15px;font-weight:600;color:#fff}
+.card-subtitle{font-size:12px;color:var(--text2)}
+.card-body{font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.7}
+.card-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.tag{padding:3px 9px;border-radius:6px;font-size:10px;font-weight:500;background:var(--surface2);border:1px solid var(--border);color:var(--text2)}
+.tag.opus{color:var(--purple);border-color:rgba(163,113,247,.3)}
+.tag.sonnet{color:var(--accent);border-color:rgba(88,166,255,.3)}
+.tag.critical{color:var(--red);border-color:rgba(248,81,73,.3)}
+.card-actions{display:flex;gap:8px}
+.btn{padding:7px 15px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:var(--border);border-color:var(--accent);color:var(--accent)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:#4a9eff;color:#fff}
+
+/* Status Bar */
+.status-bar{display:flex;gap:20px;padding:14px 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:24px;flex-wrap:wrap}
+.status-item{display:flex;align-items:center;gap:8px}
+.status-dot{width:8px;height:8px;border-radius:50%}
+.status-dot.online{background:var(--green);box-shadow:0 0 6px var(--green)}
+.status-dot.busy{background:var(--yellow);box-shadow:0 0 6px var(--yellow);animation:pulse 1.5s infinite}
+@keyframes pulse{50%{opacity:.4}}
+.status-label{font-size:12px;color:var(--text2)}
+.status-value{font-size:12px;font-weight:600;color:#fff}
+
+/* Tables */
+.data-table{width:100%;border-collapse:collapse;font-size:13px;margin:16px 0}
+.data-table th{text-align:left;padding:10px 14px;color:var(--text2);font-weight:600;border-bottom:2px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.data-table td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2)}
+.data-table tr:hover td{background:rgba(88,166,255,.03)}
+
+/* Containers */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:24px}
+.section h2{font-size:18px;margin-bottom:16px;color:#fff}
+.section h3{font-size:14px;margin:20px 0 10px;color:#fff}
+.section p{font-size:14px;color:var(--text2);margin-bottom:12px;line-height:1.7}
+.section ul,.section ol{margin:8px 0 16px 20px;color:var(--text2);font-size:13px;line-height:2}
+.section code{font-family:var(--mono);font-size:12px;background:var(--surface2);padding:2px 6px;border-radius:3px}
+.section pre{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px 20px;overflow-x:auto;margin:12px 0 20px;font-size:12px;font-family:var(--mono);line-height:1.7;color:var(--text2)}
+
+/* Architecture layers */
+.layers{margin:16px 0}
+.layer{display:flex;gap:16px;margin-bottom:12px;padding:14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);align-items:center}
+.layer-label{width:130px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text2);flex-shrink:0}
+.layer-items{display:flex;gap:10px;flex-wrap:wrap;flex:1}
+.comp{padding:8px 16px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:6px}
+.comp.fastapi{border-color:var(--fastapi);color:var(--fastapi)}
+.comp.react{border-color:var(--react);color:var(--react)}
+.comp.vite{border-color:var(--vite);color:var(--vite)}
+.comp.infra{border-color:var(--yellow);color:var(--yellow)}
+.comp.sec{border-color:var(--red);color:var(--red)}
+.arrow-d{text-align:center;color:var(--text2);font-size:18px;margin:4px 0}
+
+/* SVG workflow */
+.workflow-svg{width:100%;min-width:800px;display:block}
+
+/* Prompt Builder */
+.prompt-builder{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px}
+.prompt-selectors{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:16px}
+.selector-group label{display:block;font-size:11px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.selector-group select{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer}
+.generated-prompt{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;font-family:var(--mono);font-size:13px;line-height:1.8;color:var(--accent);position:relative;min-height:60px}
+.copy-btn{position:absolute;top:10px;right:10px;padding:5px 10px;font-size:11px}
+
+/* Checklist */
+.checklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.checklist label{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:8px;cursor:pointer;font-size:13px;border:1px solid var(--border)}
+.checklist label:hover{border-color:var(--accent)}
+.checklist input[type=checkbox]{width:16px;height:16px;accent-color:var(--green)}
+
+/* Pipeline */
+.pipeline{display:flex;gap:12px;margin:20px 0;flex-wrap:wrap;justify-content:center}
+.pipe-step{flex:1;min-width:150px;max-width:200px;background:var(--surface2);padding:20px 16px;border-radius:12px;border:1px solid var(--border);text-align:center}
+.pipe-step .icon{font-size:28px;margin-bottom:8px}
+.pipe-step .title{font-weight:600;color:#fff;font-size:13px}
+.pipe-step .desc{font-size:11px;color:var(--text2);margin-top:4px}
+.pipe-arrow{display:flex;align-items:center;color:var(--text2);font-size:20px;font-weight:700}
+
+/* Phases */
+.phases-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.phase-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:20px}
+.phase-card h3{font-size:14px;margin:0 0 8px;color:#fff}
+.phase-card .week{font-size:11px;color:var(--accent);margin-bottom:8px}
+.phase-card ul{font-size:12px;color:var(--text2);margin:0 0 0 16px;line-height:2}
+
+@media(max-width:768px){.header-content{flex-direction:column;align-items:flex-start}.main{padding:16px}.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="header-content">
+    <div class="logo">
+      <div class="logo-icon">P</div>
+      <div class="logo-text">
+        <h1>Claude Code SubAgent Command Center</h1>
+        <p>PARL Agent Mesh v2.6.0 · FastAPI 0.110+ / Python 3.12+ · React 18+ / Vite 5 / TypeScript 5</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="tag opus">Opus: Planner, Backend, Security, Deploy</span>
+      <span class="tag sonnet">Sonnet: Frontend, Testing</span>
+    </div>
+  </div>
+</header>
+
+<nav class="nav-tabs">
+  <button class="nav-tab active" onclick="showPanel('dashboard')">Dashboard</button>
+  <button class="nav-tab" onclick="showPanel('strategy')">Strategy Doc</button>
+  <button class="nav-tab" onclick="showPanel('agents')">SubAgents</button>
+  <button class="nav-tab" onclick="showPanel('architecture')">Architecture</button>
+  <button class="nav-tab" onclick="showPanel('workflow')">Workflow</button>
+  <button class="nav-tab" onclick="showPanel('prompts')">Prompt Builder</button>
+  <button class="nav-tab" onclick="showPanel('security')">Security</button>
+  <button class="nav-tab" onclick="showPanel('deploy')">Deployment</button>
+  <button class="nav-tab" onclick="showPanel('files')">File Map</button>
+</nav>
+
+<main class="main">
+
+<!-- ==================== DASHBOARD ==================== -->
+<div id="dashboard" class="panel active">
+  <div class="status-bar">
+    <div class="status-item"><div class="status-dot online"></div><span class="status-label">project-planner</span><span class="status-value">Opus · 32K</span></div>
+    <div class="status-item"><div class="status-dot online"></div><span class="status-label">fastapi-architect</span><span class="status-value">Opus · 24K</span></div>
+    <div class="status-item"><div class="status-dot online"></div><span class="status-label">vite-react-developer</span><span class="status-value">Sonnet · 16K</span></div>
+    <div class="status-item"><div class="status-dot busy"></div><span class="status-label">security-auditor</span><span class="status-value">Opus · 20K</span></div>
+    <div class="status-item"><div class="status-dot online"></div><span class="status-label">test-automator</span><span class="status-value">Sonnet · 16K</span></div>
+    <div class="status-item"><div class="status-dot online"></div><span class="status-label">web-deployer</span><span class="status-value">Opus · 24K</span></div>
+  </div>
+
+  <div class="cards">
+    <div class="card" onclick="showPanel('agents')" style="cursor:pointer">
+      <div class="card-header"><div class="card-icon planner">PL</div><div><div class="card-title">Project Planner</div><div class="card-subtitle">Principal Engineer / Tech Lead</div></div></div>
+      <div class="card-body">Architecture decisions, task decomposition, risk management, cross-team coordination. ADRs in vault/01_thinking/.</div>
+      <div class="card-tags"><span class="tag opus">Opus · 32K</span><span class="tag">Architecture</span><span class="tag">Planning</span></div>
+    </div>
+    <div class="card" onclick="showPanel('agents')" style="cursor:pointer">
+      <div class="card-header"><div class="card-icon backend">FA</div><div><div class="card-title">FastAPI Architect</div><div class="card-subtitle">Backend Engineering Specialist</div></div></div>
+      <div class="card-body">FastAPI 0.110+, SQLAlchemy 2.0 async, Pydantic v2, OAuth2/JWT, Alembic, Celery+Redis, clean architecture.</div>
+      <div class="card-tags"><span class="tag opus">Opus · 24K</span><span class="tag">Python 3.12</span><span class="tag">Async</span></div>
+    </div>
+    <div class="card" onclick="showPanel('agents')" style="cursor:pointer">
+      <div class="card-header"><div class="card-icon frontend">VR</div><div><div class="card-title">Vite React Developer</div><div class="card-subtitle">Frontend Engineering Specialist</div></div></div>
+      <div class="card-body">React 18+, TypeScript 5, Vite 5, Tailwind CSS 3, Zustand, TanStack Query, React Hook Form+Zod, TanStack Router.</div>
+      <div class="card-tags"><span class="tag sonnet">Sonnet · 16K</span><span class="tag">WCAG 2.1 AA</span><span class="tag">4 concurrent</span></div>
+    </div>
+    <div class="card" onclick="showPanel('agents')" style="cursor:pointer">
+      <div class="card-header"><div class="card-icon security">SA</div><div><div class="card-title">Security Auditor</div><div class="card-subtitle">Penetration Testing & Compliance</div></div></div>
+      <div class="card-body">OWASP Top 10, SAST/DAST, 5 security gates, dependency scanning, container scanning (Trivy), SOC2/GDPR readiness.</div>
+      <div class="card-tags"><span class="tag opus">Opus · 20K</span><span class="tag critical">Critical Path</span><span class="tag">OWASP</span></div>
+    </div>
+    <div class="card" onclick="showPanel('agents')" style="cursor:pointer">
+      <div class="card-header"><div class="card-icon testing">TA</div><div><div class="card-title">Test Automator</div><div class="card-subtitle">QA Automation Architect</div></div></div>
+      <div class="card-body">pytest, Vitest, Playwright, Pact contract testing. Testing pyramid: 60% unit, 30% integration, 10% E2E. >90% backend, >80% frontend.</div>
+      <div class="card-tags"><span class="tag sonnet">Sonnet · 16K</span><span class="tag">3 concurrent</span><span class="tag">Coverage gates</span></div>
+    </div>
+    <div class="card" onclick="showPanel('agents')" style="cursor:pointer">
+      <div class="card-header"><div class="card-icon deploy">WD</div><div><div class="card-title">Web Deployer</div><div class="card-subtitle">DevOps / SRE Specialist</div></div></div>
+      <div class="card-body">Docker, K8s/ECS/Cloud Run, Terraform, GitHub Actions, Prometheus+Grafana+Loki+Jaeger. Blue-green & canary deploys.</div>
+      <div class="card-tags"><span class="tag opus">Opus · 24K</span><span class="tag">Multi-cloud</span><span class="tag">SRE</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Key Metrics (from Strategy Doc v1.0)</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:16px">
+      <div style="text-align:center;padding:16px;background:var(--surface2);border-radius:8px"><div style="font-size:28px;font-weight:700;color:var(--purple)">2-3 wks</div><div style="font-size:12px;color:var(--text2);margin-top:4px">Time-to-MVP</div></div>
+      <div style="text-align:center;padding:16px;background:var(--surface2);border-radius:8px"><div style="font-size:28px;font-weight:700;color:var(--green)">&gt;90%</div><div style="font-size:12px;color:var(--text2);margin-top:4px">Backend Coverage</div></div>
+      <div style="text-align:center;padding:16px;background:var(--surface2);border-radius:8px"><div style="font-size:28px;font-weight:700;color:var(--accent)">&gt;80%</div><div style="font-size:12px;color:var(--text2);margin-top:4px">Frontend Coverage</div></div>
+      <div style="text-align:center;padding:16px;background:var(--surface2);border-radius:8px"><div style="font-size:28px;font-weight:700;color:var(--green)">0 Crit</div><div style="font-size:12px;color:var(--text2);margin-top:4px">OWASP Compliance</div></div>
+      <div style="text-align:center;padding:16px;background:var(--surface2);border-radius:8px"><div style="font-size:28px;font-weight:700;color:var(--yellow)">99.9%</div><div style="font-size:12px;color:var(--text2);margin-top:4px">Availability</div></div>
+      <div style="text-align:center;padding:16px;background:var(--surface2);border-radius:8px"><div style="font-size:28px;font-weight:700;color:var(--orange)">Multi/day</div><div style="font-size:12px;color:var(--text2);margin-top:4px">Deploy Frequency</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== STRATEGY DOC ==================== -->
+<div id="strategy" class="panel">
+  <div class="section">
+    <h2>Web Application Development Strategy v1.0</h2>
+    <p style="color:var(--text2)">Document owner: yinbo-liao · yinbo.leon@gmail.com · Last Updated: 2026-05-10</p>
+  </div>
+
+  <div class="section">
+    <h2>1. Executive Summary</h2>
+    <p>Professional-grade, AI-assisted development workflow for building modern web applications using FastAPI (Python 3.12+) with async SQLAlchemy 2.0, Vite + React 18+ + TypeScript + Tailwind CSS, and Claude Code with specialized SubAgents.</p>
+    <table class="data-table" style="margin-top:16px">
+      <tr><th>Objective</th><th>Target</th></tr>
+      <tr><td>Time-to-MVP</td><td style="color:var(--green)">2-3 weeks with AI delegation</td></tr>
+      <tr><td>Code Coverage</td><td style="color:var(--green)">&gt;90% backend, &gt;80% frontend</td></tr>
+      <tr><td>Security Posture</td><td style="color:var(--green)">OWASP Top 10 compliant, zero critical vulnerabilities</td></tr>
+      <tr><td>Deployment Frequency</td><td style="color:var(--green)">Multiple times per day with CI/CD</td></tr>
+      <tr><td>Availability</td><td style="color:var(--green)">99.9% uptime with auto-scaling</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>2. Technology Stack</h2>
+    <table class="data-table">
+      <tr><th>Layer</th><th>Technology</th><th>Purpose</th><th>Agent</th></tr>
+      <tr><td>Frontend Framework</td><td style="color:var(--react)">React 18 + TypeScript 5</td><td>UI components, state management</td><td>vite-react-developer</td></tr>
+      <tr><td>Build Tool</td><td style="color:var(--vite)">Vite 5</td><td>Fast dev server, optimized builds</td><td>vite-react-developer</td></tr>
+      <tr><td>Styling</td><td>Tailwind CSS 3</td><td>Utility-first responsive design</td><td>vite-react-developer</td></tr>
+      <tr><td>Client State</td><td>Zustand + TanStack Query</td><td>Client + Server state</td><td>vite-react-developer</td></tr>
+      <tr><td>Forms</td><td>React Hook Form + Zod</td><td>Type-safe form handling</td><td>vite-react-developer</td></tr>
+      <tr><td>Routing</td><td>TanStack Router</td><td>Type-safe file-based routing</td><td>vite-react-developer</td></tr>
+      <tr><td>Backend Framework</td><td style="color:var(--fastapi)">FastAPI 0.110+</td><td>Async API framework</td><td>fastapi-architect</td></tr>
+      <tr><td>ORM</td><td>SQLAlchemy 2.0 (async)</td><td>Database abstraction</td><td>fastapi-architect</td></tr>
+      <tr><td>Validation</td><td>Pydantic v2</td><td>Request/response schemas</td><td>fastapi-architect</td></tr>
+      <tr><td>Auth</td><td>OAuth2 + JWT (python-jose)</td><td>Authentication/authorization</td><td>fastapi-architect + security-auditor</td></tr>
+      <tr><td>Task Queue</td><td>Celery + Redis</td><td>Background processing</td><td>fastapi-architect</td></tr>
+      <tr><td>Container</td><td>Docker + Docker Compose</td><td>Development parity</td><td>web-deployer</td></tr>
+      <tr><td>Orchestration</td><td>K8s / ECS / Cloud Run</td><td>Production deployment</td><td>web-deployer</td></tr>
+      <tr><td>IaC</td><td>Terraform</td><td>Infrastructure provisioning</td><td>web-deployer</td></tr>
+      <tr><td>CI/CD</td><td>GitHub Actions</td><td>Automated pipelines</td><td>web-deployer</td></tr>
+      <tr><td>Monitoring</td><td>Prometheus + Grafana</td><td>Metrics, dashboards, alerts</td><td>web-deployer</td></tr>
+      <tr><td>Logging</td><td>Loki / ELK</td><td>Centralized log aggregation</td><td>web-deployer</td></tr>
+      <tr><td>Tracing</td><td>OpenTelemetry + Jaeger</td><td>Distributed tracing</td><td>web-deployer</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>4. Development Phases</h2>
+    <div class="phases-grid">
+      <div class="phase-card">
+        <h3>Phase 0: Foundation</h3><div class="week">Week 1</div>
+        <ul><li>Repo setup & branching strategy</li><li>Docker Compose dev environment</li><li>CI/CD skeleton (GitHub Actions)</li><li>Linting configs (Ruff, ESLint, Prettier)</li><li>Pre-commit hooks</li><li>Design system foundation</li><li>Database migration baseline</li></ul>
+      </div>
+      <div class="phase-card">
+        <h3>Phase 1: Core Features</h3><div class="week">Weeks 2-3 (MVP)</div>
+        <ul><li>User auth (OAuth2 + JWT)</li><li>Core CRUD operations</li><li>Basic UI (login, register, dashboard)</li><li>Backend + frontend tests</li><li>API contract validation</li></ul>
+      </div>
+      <div class="phase-card">
+        <h3>Phase 2: Expansion</h3><div class="week">Weeks 4-6</div>
+        <ul><li>Business logic implementation</li><li>Full test coverage</li><li>Parallel feature development</li><li>Integration testing</li><li>Security reviews</li></ul>
+      </div>
+      <div class="phase-card">
+        <h3>Phase 3: Hardening & Launch</h3><div class="week">Weeks 7-8</div>
+        <ul><li>Full security audit (pen test)</li><li>Performance optimization</li><li>Load testing</li><li>Production deployment</li><li>Monitoring & alerting setup</li></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SUBAGENTS ==================== -->
+<div id="agents" class="panel">
+  <div class="section">
+    <h2>Agent Hierarchy & Model Assignment</h2>
+    <svg viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;display:block;margin:0 auto">
+      <rect x="270" y="10" width="260" height="50" rx="8" fill="#1c2128" stroke="#a371f7" stroke-width="2"/>
+      <text x="400" y="32" text-anchor="middle" fill="#a371f7" font-size="14" font-weight="600">project-planner (Opus · 32K)</text>
+      <text x="400" y="50" text-anchor="middle" fill="#8b949e" font-size="11">Principal Engineer / Tech Lead</text>
+      <path d="M400 60 L400 80" stroke="#30363d" stroke-width="2"/>
+      <path d="M270 80 L400 80 L530 80" stroke="#30363d" stroke-width="2"/>
+      <path d="M140 80 L270 80" stroke="#30363d" stroke-width="2"/>
+      <path d="M530 80 L660 80" stroke="#30363d" stroke-width="2"/>
+      <rect x="10" y="90" width="180" height="50" rx="8" fill="#1c2128" stroke="#009688" stroke-width="2"/>
+      <text x="100" y="112" text-anchor="middle" fill="#009688" font-size="12" font-weight="600">fastapi-architect</text>
+      <text x="100" y="130" text-anchor="middle" fill="#8b949e" font-size="10">Opus · 24K · Backend</text>
+      <rect x="220" y="90" width="180" height="50" rx="8" fill="#1c2128" stroke="#61dafb" stroke-width="2"/>
+      <text x="310" y="112" text-anchor="middle" fill="#61dafb" font-size="12" font-weight="600">vite-react-developer</text>
+      <text x="310" y="130" text-anchor="middle" fill="#8b949e" font-size="10">Sonnet · 16K · Frontend</text>
+      <rect x="430" y="90" width="180" height="50" rx="8" fill="#1c2128" stroke="#f85149" stroke-width="2"/>
+      <text x="520" y="112" text-anchor="middle" fill="#f85149" font-size="12" font-weight="600">security-auditor</text>
+      <text x="520" y="130" text-anchor="middle" fill="#8b949e" font-size="10">Opus · 20K · Security</text>
+      <rect x="640" y="90" width="150" height="50" rx="8" fill="#1c2128" stroke="#3fb950" stroke-width="2"/>
+      <text x="715" y="112" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="600">test-automator</text>
+      <text x="715" y="130" text-anchor="middle" fill="#8b949e" font-size="10">Sonnet · 16K · QA</text>
+      <path d="M270 140 L400 140 L530 140" stroke="#30363d" stroke-width="2"/>
+      <path d="M140 140 L270 140" stroke="#30363d" stroke-width="2"/>
+      <path d="M530 140 L660 140" stroke="#30363d" stroke-width="2"/>
+      <rect x="270" y="148" width="260" height="44" rx="8" fill="#1c2128" stroke="#d29922" stroke-width="2"/>
+      <text x="400" y="168" text-anchor="middle" fill="#d29922" font-size="12" font-weight="600">web-deployer (Opus · 24K)</text>
+      <text x="400" y="184" text-anchor="middle" fill="#8b949e" font-size="10">DevOps / SRE</text>
+    </svg>
+  </div>
+
+  <div class="section">
+    <h2>Collaboration Matrix</h2>
+    <table class="data-table">
+      <tr><th>Concern</th><th>Primary Agent</th><th>Supporting Agents</th></tr>
+      <tr><td>API Design</td><td>fastapi-architect</td><td>project-planner (contract approval)</td></tr>
+      <tr><td>Database Schema</td><td>fastapi-architect</td><td>test-automator (test data factories)</td></tr>
+      <tr><td>UI Components</td><td>vite-react-developer</td><td>project-planner (design system alignment)</td></tr>
+      <tr><td>API Integration</td><td>vite-react-developer</td><td>fastapi-architect (OpenAPI spec)</td></tr>
+      <tr><td>Authentication Flow</td><td>fastapi-architect</td><td>security-auditor (threat model), vite-react-developer (UI)</td></tr>
+      <tr><td>Authorization (RBAC)</td><td>security-auditor</td><td>fastapi-architect (implementation)</td></tr>
+      <tr><td>Input Validation</td><td>fastapi-architect</td><td>security-auditor (bypass testing)</td></tr>
+      <tr><td>XSS Prevention</td><td>vite-react-developer</td><td>security-auditor (DOM testing)</td></tr>
+      <tr><td>Dependency Updates</td><td>security-auditor</td><td>web-deployer (CI scanning)</td></tr>
+      <tr><td>Unit Tests</td><td>test-automator</td><td>fastapi-architect / vite-react-developer</td></tr>
+      <tr><td>E2E Tests</td><td>test-automator</td><td>web-deployer (staging environment)</td></tr>
+      <tr><td>Docker Images</td><td>web-deployer</td><td>security-auditor (image scanning)</td></tr>
+      <tr><td>CI/CD Pipeline</td><td>web-deployer</td><td>test-automator, security-auditor</td></tr>
+      <tr><td>Incident Response</td><td>web-deployer</td><td>security-auditor (forensics)</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ==================== ARCHITECTURE ==================== -->
+<div id="architecture" class="panel">
+  <div class="section">
+    <h2>System Architecture — CDN → Load Balancer → FastAPI + React</h2>
+    <div class="layers">
+      <div class="layer"><div class="layer-label">Client Layer</div><div class="layer-items"><div class="comp react">Web App (React 18 + Vite)</div><div class="comp react">Mobile App (Future)</div><div class="comp react">Admin Panel (React)</div></div></div>
+      <div class="arrow-d">↓ HTTPS / HTTP2</div>
+      <div class="layer"><div class="layer-label">Edge / CDN</div><div class="layer-items"><div class="comp infra">CloudFront / Cloud CDN</div><div class="comp sec">WAF / DDoS Protection</div><div class="comp infra">Static Assets (S3)</div></div></div>
+      <div class="arrow-d">↓</div>
+      <div class="layer"><div class="layer-label">Load Balancer</div><div class="layer-items"><div class="comp infra">ALB / Nginx / Traefik</div><div class="comp sec">SSL Termination</div><div class="comp infra">Rate Limiting</div></div></div>
+      <div class="arrow-d">↓</div>
+      <div class="layer"><div class="layer-label">Application</div><div class="layer-items"><div class="comp fastapi">FastAPI (Uvicorn/Gunicorn)</div><div class="comp fastapi">Auth Module (OAuth2+JWT)</div><div class="comp react">React SPA (Nginx)</div><div class="comp fastapi">WebSocket Handler</div></div></div>
+      <div class="arrow-d">↓</div>
+      <div class="layer"><div class="layer-label">Data Layer</div><div class="layer-items"><div class="comp infra">PostgreSQL 16 (RDS)</div><div class="comp infra">Redis (ElastiCache)</div><div class="comp infra">Celery + Redis (Queue)</div><div class="comp infra">S3 / MinIO (Files)</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== WORKFLOW ==================== -->
+<div id="workflow" class="panel">
+  <div class="section">
+    <h2>Feature Development Workflow</h2>
+    <svg class="workflow-svg" viewBox="0 0 900 380" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="10" width="185" height="70" rx="8" fill="#1c2128" stroke="#a371f7" stroke-width="2"/>
+      <text x="102" y="35" text-anchor="middle" fill="#a371f7" font-size="12" font-weight="600">Phase 1: Planning</text>
+      <text x="102" y="55" text-anchor="middle" fill="#8b949e" font-size="10">project-planner</text>
+      <text x="102" y="70" text-anchor="middle" fill="#8b949e" font-size="10">Decompose & Contract</text>
+      <path d="M195 45 L235 45" stroke="#30363d" stroke-width="2"/>
+      <rect x="245" y="10" width="185" height="70" rx="8" fill="#1c2128" stroke="#58a6ff" stroke-width="2"/>
+      <text x="337" y="35" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="600">Phase 2: API Contract</text>
+      <text x="337" y="55" text-anchor="middle" fill="#8b949e" font-size="10">fastapi-architect</text>
+      <text x="337" y="70" text-anchor="middle" fill="#8b949e" font-size="10">OpenAPI 3.1 + Schema</text>
+      <path d="M430 45 L470 45" stroke="#30363d" stroke-width="2"/>
+      <!-- Parallel dev -->
+      <rect x="480" y="10" width="170" height="70" rx="8" fill="#1c2128" stroke="#009688" stroke-width="2"/>
+      <text x="565" y="35" text-anchor="middle" fill="#009688" font-size="12" font-weight="600">Backend Build</text>
+      <text x="565" y="55" text-anchor="middle" fill="#8b949e" font-size="10">fastapi-architect</text>
+      <text x="565" y="70" text-anchor="middle" fill="#8b949e" font-size="10">API + DB + Auth + Tests</text>
+      <rect x="480" y="100" width="170" height="70" rx="8" fill="#1c2128" stroke="#61dafb" stroke-width="2"/>
+      <text x="565" y="125" text-anchor="middle" fill="#61dafb" font-size="12" font-weight="600">Frontend Build</text>
+      <text x="565" y="145" text-anchor="middle" fill="#8b949e" font-size="10">vite-react-developer</text>
+      <text x="565" y="160" text-anchor="middle" fill="#8b949e" font-size="10">UI + Integration + Tests</text>
+      <path d="M650 45 L690 45 L690 135 L730 135" stroke="#30363d" stroke-width="2"/>
+      <path d="M650 135 L730 135" stroke="#30363d" stroke-width="2"/>
+      <!-- Testing & Security -->
+      <rect x="740" y="10" width="150" height="70" rx="8" fill="#1c2128" stroke="#3fb950" stroke-width="2"/>
+      <text x="815" y="35" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="600">Testing</text>
+      <text x="815" y="55" text-anchor="middle" fill="#8b949e" font-size="10">test-automator</text>
+      <text x="815" y="70" text-anchor="middle" fill="#8b949e" font-size="10">Unit + Int + E2E</text>
+      <rect x="740" y="100" width="150" height="70" rx="8" fill="#1c2128" stroke="#f85149" stroke-width="2"/>
+      <text x="815" y="125" text-anchor="middle" fill="#f85149" font-size="12" font-weight="600">Security Audit</text>
+      <text x="815" y="145" text-anchor="middle" fill="#8b949e" font-size="10">security-auditor</text>
+      <text x="815" y="160" text-anchor="middle" fill="#8b949e" font-size="10">OWASP + SAST + Scan</text>
+      <!-- Gate -->
+      <circle cx="815" cy="205" r="16" fill="#1c2128" stroke="#d29922" stroke-width="2"/>
+      <text x="815" y="210" text-anchor="middle" fill="#d29922" font-size="12" font-weight="bold">GATE</text>
+      <path d="M815 175 L815 189" stroke="#30363d" stroke-width="2"/>
+      <path d="M815 221 L815 240" stroke="#30363d" stroke-width="2"/>
+      <path d="M799 205 L750 205 L750 280 L815 280" stroke="#f85149" stroke-width="1.5" stroke-dasharray="5,4"/>
+      <text x="780" y="195" text-anchor="middle" fill="#f85149" font-size="10">FAIL: Remediate</text>
+      <!-- Deploy -->
+      <rect x="690" y="245" width="250" height="60" rx="8" fill="#1c2128" stroke="#d29922" stroke-width="2"/>
+      <text x="815" y="268" text-anchor="middle" fill="#d29922" font-size="12" font-weight="600">Phase 5: Deploy (web-deployer)</text>
+      <text x="815" y="285" text-anchor="middle" fill="#8b949e" font-size="10">Staging → Blue-green → Canary → Production</text>
+      <!-- Monitor -->
+      <path d="M815 305 L815 325" stroke="#30363d" stroke-width="2"/>
+      <rect x="640" y="330" width="350" height="40" rx="8" fill="#1c2128" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="815" y="355" text-anchor="middle" fill="#58a6ff" font-size="11">Phase 6: Monitor (Prometheus + Grafana + Loki + Jaeger) → Feedback to planner</text>
+    </svg>
+  </div>
+</div>
+
+<!-- ==================== PROMPT BUILDER ==================== -->
+<div id="prompts" class="panel">
+  <div class="prompt-builder">
+    <h2 style="color:#fff;margin-bottom:8px;font-size:16px">Interactive Prompt Builder</h2>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px">Select parameters to generate precise Claude Code delegation prompts.</p>
+    <div class="prompt-selectors">
+      <div class="selector-group"><label>Primary Agent</label><select id="agent-select" onchange="updatePrompt()">
+        <option value="project-planner">Project Planner (Opus)</option>
+        <option value="fastapi-architect">FastAPI Architect (Opus)</option>
+        <option value="vite-react-developer">Vite React Developer (Sonnet)</option>
+        <option value="security-auditor">Security Auditor (Opus)</option>
+        <option value="test-automator">Test Automator (Sonnet)</option>
+        <option value="web-deployer">Web Deployer (Opus)</option>
+      </select></div>
+      <div class="selector-group"><label>Task Type</label><select id="task-select" onchange="updatePrompt()">
+        <option value="implement">Implement Feature</option>
+        <option value="review">Code Review</option>
+        <option value="plan">Technical Planning</option>
+        <option value="refactor">Refactor</option>
+        <option value="debug">Debug Issue</option>
+        <option value="deploy">Deploy</option>
+      </select></div>
+      <div class="selector-group"><label>Complexity</label><select id="complexity-select" onchange="updatePrompt()">
+        <option value="simple">Simple (< 2 hours)</option>
+        <option value="medium" selected>Medium (2-8 hours)</option>
+        <option value="complex">Complex (1-3 days)</option>
+        <option value="epic">Epic (1-2 weeks)</option>
+      </select></div>
+      <div class="selector-group"><label>Priority</label><select id="priority-select" onchange="updatePrompt()">
+        <option value="low">Low</option><option value="medium" selected>Medium</option>
+        <option value="high">High</option><option value="critical">Critical</option>
+      </select></div>
+    </div>
+    <div class="generated-prompt">
+      <button class="btn copy-btn" onclick="copyPrompt()">Copy</button>
+      <div id="prompt-text">Select parameters above to generate your prompt...</div>
+    </div>
+  </div>
+  <div class="section"><h3>Quick Templates (from Strategy Doc §9.2)</h3>
+    <p style="font-size:12px;color:var(--accent);font-family:var(--mono);margin:8px 0">> "Use project-planner to create technical spec for [feature]"</p>
+    <p style="font-size:12px;color:var(--fastapi);font-family:var(--mono);margin:8px 0">> "Use fastapi-architect to implement [feature] with async SQLAlchemy and full test coverage"</p>
+    <p style="font-size:12px;color:var(--react);font-family:var(--mono);margin:8px 0">> "Use vite-react-developer to build [component] with loading/error states and WCAG 2.1 AA"</p>
+    <p style="font-size:12px;color:var(--red);font-family:var(--mono);margin:8px 0">> "Use security-auditor to review [file/PR] for OWASP Top 10 compliance"</p>
+    <p style="font-size:12px;color:var(--green);font-family:var(--mono);margin:8px 0">> "Use test-automator to write pytest/Vitest/Playwright tests for [module]"</p>
+    <p style="font-size:12px;color:var(--yellow);font-family:var(--mono);margin:8px 0">> "Use web-deployer to containerize application and set up GitHub Actions CI/CD"</p>
+  </div>
+</div>
+
+<!-- ==================== SECURITY ==================== -->
+<div id="security" class="panel">
+  <div class="section">
+    <h2>5 Security Gates</h2>
+    <table class="data-table">
+      <tr><th>Gate</th><th>Trigger</th><th>Owner</th><th>Action on Failure</th></tr>
+      <tr><td style="color:var(--red);font-weight:600">SAST</td><td>Every commit</td><td>security-auditor</td><td style="color:var(--red)">Block merge, create ticket</td></tr>
+      <tr><td style="color:var(--red);font-weight:600">Dependency Scan</td><td>Every PR</td><td>security-auditor</td><td style="color:var(--yellow)">Auto-update if patch available</td></tr>
+      <tr><td style="color:var(--red);font-weight:600">Container Scan</td><td>Every build</td><td>web-deployer</td><td style="color:var(--red)">Fail CI, rebuild base image</td></tr>
+      <tr><td style="color:var(--red);font-weight:600">Penetration Test</td><td>Pre-release</td><td>security-auditor</td><td style="color:var(--red)">Hold release, fix critical</td></tr>
+      <tr><td style="color:var(--red);font-weight:600">Code Review</td><td>Every PR</td><td>All agents</td><td style="color:var(--yellow)">Require 2 approvals</td></tr>
+    </table>
+  </div>
+  <div class="section">
+    <h2>Per-Feature Security Checklist</h2>
+    <div class="checklist">
+      <label><input type="checkbox">Input validation on all endpoints (Pydantic + custom)</label>
+      <label><input type="checkbox">Output serialization (no raw ORM objects)</label>
+      <label><input type="checkbox">Authentication required (except public endpoints)</label>
+      <label><input type="checkbox">Authorization checks (RBAC decorators)</label>
+      <label><input type="checkbox">Rate limiting configured (slowapi / Redis)</label>
+      <label><input type="checkbox">SQL injection prevention (parameterized only)</label>
+      <label><input type="checkbox">XSS prevention (React auto-escape + DOMPurify)</label>
+      <label><input type="checkbox">CSRF protection (SameSite + custom headers)</label>
+      <label><input type="checkbox">Secret management (env vars, no hardcoded)</label>
+      <label><input type="checkbox">Logging sanitized (no PII, tokens, passwords)</label>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== DEPLOYMENT ==================== -->
+<div id="deploy" class="panel">
+  <div class="section">
+    <h2>Deployment Pipeline</h2>
+    <div class="pipeline">
+      <div class="pipe-step"><div class="icon">Local</div><div class="title">Development</div><div class="desc">docker-compose up<br>Hot reload</div></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step"><div class="icon">CI</div><div class="title">Continuous Integration</div><div class="desc">GitHub Actions<br>Parallel tests</div></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step"><div class="icon">Staging</div><div class="title">Pre-Production</div><div class="desc">Terraform apply<br>Blue-green deploy</div></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step" style="border-color:var(--green)"><div class="icon">Production</div><div class="title" style="color:var(--green)">Live Traffic</div><div class="desc">Canary deploy<br>Rollback ready</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>Rollback Procedures</h2>
+    <table class="data-table">
+      <tr><th>Scenario</th><th>Method</th><th>Recovery Time</th></tr>
+      <tr><td style="color:var(--red)">Bad deployment</td><td>Switch load balancer to previous version</td><td style="color:var(--green)">&lt; 30 seconds</td></tr>
+      <tr><td style="color:var(--red)">Database issue</td><td>Alembic downgrade + restore from snapshot</td><td style="color:var(--green)">&lt; 5 minutes</td></tr>
+      <tr><td style="color:var(--red)">Security breach</td><td>Isolate containers, rotate secrets, redeploy</td><td style="color:var(--green)">&lt; 10 minutes</td></tr>
+      <tr><td style="color:var(--red)">Data corruption</td><td>Point-in-time restore + replay transactions</td><td style="color:var(--green)">&lt; 1 hour</td></tr>
+    </table>
+  </div>
+  <div class="section">
+    <h2>Incident Response (from Strategy Doc §8.3)</h2>
+    <h3>SEV 1 — Site Down</h3>
+    <ol><li>Acknowledge alert within 5 minutes</li><li>Assess scope (all users vs region vs feature)</li><li>Deployment-related: execute blue-green rollback</li><li>Database-related: initiate point-in-time restore</li><li>Communicate via status page</li><li>Post-incident review within 24 hours</li></ol>
+    <h3>SEV 2 — Degraded Performance</h3>
+    <ol><li>Identify bottleneck (DB query, API, leak, CPU)</li><li>Scale horizontally if resource-constrained</li><li>Enable circuit breakers for failing dependencies</li><li>Monitor for 30 minutes after mitigation</li></ol>
+  </div>
+</div>
+
+<!-- ==================== FILE MAP ==================== -->
+<div id="files" class="panel">
+  <div class="section">
+    <h2>Agent File Locations</h2>
+    <pre style="color:var(--accent)">~/.claude/agents/your-project/
+├── project-planner.md      # Principal Engineer / Tech Lead (Opus, 32K)
+├── fastapi-architect.md    # Backend Engineering Specialist (Opus, 24K)
+├── vite-react-developer.md # Frontend Engineering Specialist (Sonnet, 16K)
+├── security-auditor.md     # Security & Compliance (Opus, 20K)
+├── test-automator.md       # QA Automation Architect (Sonnet, 16K)
+└── web-deployer.md         # DevOps / SRE Specialist (Opus, 24K)</pre>
+  </div>
+  <div class="section">
+    <h2>Project Structure — claude-agents-optimized/</h2>
+    <pre style="color:var(--text2);font-size:12px;line-height:1.8">claude-agents-optimized/
+├── SOUL.md, AGENTS.md, MEMORY.md, TOOLS.md  ← Always Hot Core
+├── agents/ (6 agent definitions)
+├── vault/01_thinking/    ← Architecture decisions
+├── vault/02_reference/   ← API contracts, DB schema, design system, security, testing
+├── vault/03_creating/    ← Active feature specs
+├── vault/04_published/   ← Final docs, test reports, deploy logs
+├── vault/05_archive/     ← Historical records
+├── vault/06_system/      ← Runbooks, procedures
+├── .learnings/           ← Self-improving feedback loop
+├── compaction-rules.yaml, cache-policy.yaml
+├── parallel-config.yaml, security-isolation.yaml
+├── progress.txt          ← Session checkpoint
+└── README.md             ← Full documentation</pre>
+  </div>
+  <div class="section">
+    <h2>Integration Checklist (Strategy Doc §9.4)</h2>
+    <div class="checklist">
+      <label><input type="checkbox" checked>All 6 agent files in ~/.claude/agents/your-project/</label>
+      <label><input type="checkbox" checked>Repository initialized with proper structure</label>
+      <label><input type="checkbox">Docker Compose dev environment working</label>
+      <label><input type="checkbox">CI/CD skeleton passing basic checks</label>
+      <label><input type="checkbox" checked>OpenAPI spec template created</label>
+      <label><input type="checkbox" checked>Design system foundation (tokens)</label>
+      <label><input type="checkbox" checked>Database migration baseline established</label>
+      <label><input type="checkbox">Pre-commit hooks configured</label>
+      <label><input type="checkbox" checked>Team conventions documented</label>
+      <label><input type="checkbox" checked>Strategy document referenced</label>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t=>{
+    if(t.textContent.trim().toLowerCase().includes(id.replace('-',''))||
+       (id==='dashboard'&&t.textContent.includes('Dashboard'))||
+       (id==='strategy'&&t.textContent.includes('Strategy'))||
+       (id==='agents'&&t.textContent.includes('SubAgents'))||
+       (id==='architecture'&&t.textContent.includes('Architecture'))||
+       (id==='workflow'&&t.textContent.includes('Workflow'))||
+       (id==='prompts'&&t.textContent.includes('Prompt'))||
+       (id==='security'&&t.textContent.includes('Security'))||
+       (id==='deploy'&&t.textContent.includes('Deployment'))||
+       (id==='files'&&t.textContent.includes('File')))
+      t.classList.add('active');
+  });
+}
+
+const prompts={
+  'project-planner':{implement:'Use project-planner to decompose [FEATURE] into implementable tasks with acceptance criteria, timeline estimates, and risk assessment. Priority: {p}.',review:'Use project-planner to review the current project state and identify technical debt, blockers, and optimization opportunities.',plan:'Use project-planner to create a comprehensive technical specification for [FEATURE] including architecture decisions (ADR), data model, API contract, and testing strategy.',refactor:'Use project-planner to analyze [COMPONENT] and create a refactoring plan that minimizes risk and maintains backward compatibility.',debug:'Use project-planner to coordinate investigation of [ISSUE] across all agents and establish a resolution timeline.',deploy:'Use project-planner to create a deployment runbook for [RELEASE] with rollback procedures and monitoring checkpoints.'},
+  'fastapi-architect':{implement:'Use fastapi-architect to implement [FEATURE] with async SQLAlchemy 2.0, Pydantic v2 schemas, proper error handling ({detail, code, context}), and structured logging. Include OpenAPI documentation.',review:'Use fastapi-architect to review [FILE/PR] for API design patterns, database query efficiency (N+1 detection), and async best practices.',plan:'Use fastapi-architect to design the API contract and database schema for [FEATURE] with relationship diagrams and Alembic migration strategy.',refactor:'Use fastapi-architect to refactor [MODULE] for better separation of concerns (router/service/repository), dependency injection, and testability.',debug:'Use fastapi-architect to investigate [ISSUE] in the backend, trace database queries, and identify performance bottlenecks.',deploy:'Use fastapi-architect to add health check endpoints, Prometheus metrics exporters, and structured logging for production monitoring.'},
+  'vite-react-developer':{implement:'Use vite-react-developer to build [COMPONENT/PAGE] with React 18, TypeScript 5 strict, Tailwind CSS 3, TanStack Query, and all 4 states (loading/empty/error/data). WCAG 2.1 AA compliance required.',review:'Use vite-react-developer to review [FILE/PR] for React best practices, performance, accessibility (WCAG 2.1 AA), and bundle size impact.',plan:'Use vite-react-developer to design the UI/UX for [FEATURE] with component hierarchy, state management plan, and responsive breakpoints.',refactor:'Use vite-react-developer to refactor [COMPONENT] for better reusability (<300 lines), performance, and accessibility. Extract custom hooks.',debug:'Use vite-react-developer to investigate [ISSUE] in the frontend — check API integration, state updates, and rendering performance.',deploy:'Use vite-react-developer to configure environment-specific builds, CDN asset paths, and error tracking integration (Sentry).'},
+  'security-auditor':{implement:'Use security-auditor to implement security controls for [FEATURE] including input validation, output encoding, and access control. Verify all 10 checklist items.',review:'Use security-auditor to perform a comprehensive security review of [FILE/PR]. Check OWASP Top 10, injection flaws, auth bypasses. Use 5-gate process.',plan:'Use security-auditor to create a threat model for [FEATURE] with attack surface analysis and mitigation strategies.',refactor:'Use security-auditor to review [MODULE] for security anti-patterns and recommend hardening measures.',debug:'Use security-auditor to investigate the security impact of [ISSUE] and recommend immediate containment measures.',deploy:'Use security-auditor to perform pre-deployment penetration testing and sign off on security readiness (all 5 gates passed).'},
+  'test-automator':{implement:'Use test-automator to implement comprehensive tests: pytest unit tests (backend services), Vitest component tests (UI), Playwright E2E (critical journeys). Target >90% backend, >80% frontend.',review:'Use test-automator to review test coverage for [MODULE] and identify gaps in unit, integration, and E2E testing against the testing pyramid.',plan:'Use test-automator to design the testing strategy for [FEATURE] with test pyramid distribution, mocking strategy, and CI integration.',refactor:'Use test-automator to refactor test suite for [MODULE] to improve reliability, speed, and maintainability. Quarantine flaky tests.',debug:'Use test-automator to investigate flaky tests in [TEST_SUITE] and implement stabilization measures.',deploy:'Use test-automator to configure CI test gates, coverage thresholds, and post-deployment smoke tests.'},
+  'web-deployer':{implement:'Use web-deployer to set up infrastructure for [FEATURE]: Docker containers, Terraform modules, Kubernetes manifests, GitHub Actions pipeline.',review:'Use web-deployer to review [INFRA_CODE] for security, cost optimization, and best practices.',plan:'Use web-deployer to design deployment architecture for [FEATURE] with environment strategy, scaling policies, and disaster recovery.',refactor:'Use web-deployer to refactor [INFRASTRUCTURE] for better resource utilization, security hardening, and cost reduction.',debug:'Use web-deployer to investigate [INCIDENT] in production — analyze logs/metrics/traces, coordinate incident response (SEV 1/2 runbook).',deploy:'Use web-deployer to execute deployment of [RELEASE] to [ENVIRONMENT] with blue-green strategy, health checks, and rollback readiness.'}
+};
+
+function updatePrompt(){
+  const a=document.getElementById('agent-select').value;
+  const t=document.getElementById('task-select').value;
+  const p=document.getElementById('priority-select').value;
+  const c=document.getElementById('complexity-select').value;
+  const pt=prompts[a]?.[t]||'Select an agent and task type...';
+  document.getElementById('prompt-text').textContent='> '+pt.replace('{p}',p)+' [Complexity: '+c+']';
+}
+function copyPrompt(){
+  const t=document.getElementById('prompt-text').textContent;
+  navigator.clipboard.writeText(t).then(()=>{
+    const b=document.querySelector('.copy-btn');b.textContent='Copied!';
+    setTimeout(()=>b.textContent='Copy',2000);
+  });
+}
+updatePrompt();
+</script>
+</body>
+</html>

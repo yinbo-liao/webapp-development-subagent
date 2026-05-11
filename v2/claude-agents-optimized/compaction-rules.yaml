@@ -1,0 +1,46 @@
+# Compaction Rules — Context Compression Configuration
+# Used when agent context exceeds budget: defines what to keep, compress, or discard.
+
+version: "1.0"
+default_strategy: "prioritize-core"
+
+# Priority tiers for context retention
+tiers:
+  always_keep:
+    - SOUL.md           # Identity is non-negotiable
+    - AGENTS.md         # Routing must survive compaction
+    - TOOLS.md          # Tool knowledge required for any action
+    - progress.txt      # Never lose the checkpoint
+    max_tokens: 2000
+
+  compress:
+    - vault/01_thinking/**/*.md     # Summarize ADRs, keep decisions
+    - vault/02_reference/**/*.yaml   # Keep schema, discard examples
+    - agents/*.md                    # Keep role + rules, discard prose
+    compression_ratio: 0.3           # Keep 30% of tokens
+    strategy: "extract_key_points"
+
+  discard:
+    - vault/05_archive/**/*          # Archive can be re-read on demand
+    - .learnings/**/*                # Read back if relevant error recurs
+    - test-reports/**/*              # Regenerate, don't store in context
+    - deployment-logs/**/*           # Ephemeral by nature
+
+# When to trigger compaction
+triggers:
+  context_usage_pct: 85       # Compact when 85% of budget consumed
+  token_budget_remaining: 5000  # Or when fewer than 5K tokens remain
+  idle_turns: 3               # Compact after 3 turns without productive output
+
+# Compaction behavior per agent
+per_agent_overrides:
+  project-planner:
+    keep_extra:
+      - vault/01_thinking/**/*    # Planner needs full architectural context
+      - vault/03_creating/**/*    # Active feature specs always hot
+  security-auditor:
+    keep_extra:
+      - vault/02_reference/security/**/*  # Security rules always loaded
+  web-deployer:
+    keep_extra:
+      - vault/06_system/**/*      # Runbooks always accessible

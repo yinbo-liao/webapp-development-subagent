@@ -1,0 +1,26 @@
+openapi: 3.1.0
+info:
+  title: Project API
+  version: 0.1.0
+  description: |
+    API contracts for the current project.
+    All frontend-backend communication MUST conform to these schemas.
+    Changes require project-planner approval and contract test updates.
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development
+  - url: https://staging.example.com/api/v1
+    description: Staging
+  - url: https://api.example.com/v1
+    description: Production
+
+# Contract Versioning Rules:
+# - MAJOR: Breaking changes (field removal, type change, endpoint removal)
+# - MINOR: Additive changes (new endpoint, new optional field)
+# - PATCH: Documentation, examples, description fixes
+#
+# Breaking changes require:
+#   1. project-planner approval
+#   2. Contract test update
+#   3. Coordinated frontend+backend deployment

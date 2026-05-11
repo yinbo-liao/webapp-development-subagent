@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Code SubAgent Command Center — FastAPI + Vite/React</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #161b22;
+            --surface-2: #1c2128;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-2: #3fb950;
+            --accent-3: #d29922;
+            --accent-4: #f85149;
+            --accent-5: #a371f7;
+            --fastapi: #009688;
+            --react: #61dafb;
+            --vite: #646cff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 32px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-5));
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 18px;
+        }
+        .logo-text h1 { font-size: 20px; font-weight: 600; color: #fff; }
+        .logo-text p { font-size: 13px; color: var(--text-secondary); }
+        .env-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 20px;
+            font-size: 12px; font-weight: 500;
+            border: 1px solid var(--border);
+        }
+        .env-badge.dev { background: rgba(88, 166, 255, 0.1); color: var(--accent); }
+        .env-badge.staging { background: rgba(211, 153, 34, 0.1); color: var(--accent-3); }
+        .env-badge.prod { background: rgba(63, 185, 80, 0.1); color: var(--accent-2); }
+        .nav-tabs {
+            display: flex; gap: 4px; padding: 0 32px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        .nav-tab {
+            padding: 14px 20px; border: none; background: transparent;
+            color: var(--text-secondary); cursor: pointer;
+            font-size: 14px; font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s; white-space: nowrap;
+        }
+        .nav-tab:hover { color: var(--text); }
+        .nav-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            background: rgba(88, 166, 255, 0.05);
+        }
+        .main { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px; margin-bottom: 32px;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative; overflow: hidden;
+        }
+        .card::before {
+            content: ''; position: absolute;
+            top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-5));
+            opacity: 0; transition: opacity 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        .card:hover::before { opacity: 1; }
+        .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .card-icon {
+            width: 44px; height: 44px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        .card-icon.planner { background: rgba(163, 113, 247, 0.15); }
+        .card-icon.backend { background: rgba(0, 150, 136, 0.15); }
+        .card-icon.frontend { background: rgba(97, 218, 251, 0.15); }
+        .card-icon.security { background: rgba(248, 81, 73, 0.15); }
+        .card-icon.testing { background: rgba(63, 185, 80, 0.15); }
+        .card-icon.deploy { background: rgba(211, 153, 34, 0.15); }
+        .card-title { font-size: 16px; font-weight: 600; color: #fff; }
+        .card-subtitle { font-size: 12px; color: var(--text-secondary); }
+        .card-body {
+            font-size: 14px; color: var(--text-secondary);
+            margin-bottom: 16px; line-height: 1.7;
+        }
+        .card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+        .tag {
+            padding: 4px 10px; border-radius: 6px;
+            font-size: 11px; font-weight: 500;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .tag.opus { color: var(--accent-5); border-color: rgba(163,113,247,0.3); }
+        .tag.sonnet { color: var(--accent); border-color: rgba(88,166,255,0.3); }
+        .tag.critical { color: var(--accent-4); border-color: rgba(248,81,73,0.3); }
+        .card-actions { display: flex; gap: 8px; }
+        .btn {
+            padding: 8px 16px; border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            color: var(--text); font-size: 13px; font-weight: 500;
+            cursor: pointer; transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn:hover {
+            background: var(--border);
+            border-color: var(--accent); color: var(--accent);
+        }
+        .btn-primary {
+            background: var(--accent); color: #fff;
+            border-color: var(--accent);
+        }
+        .btn-primary:hover {
+            background: #4a9eff; color: #fff;
+        }
+        .status-bar {
+            display: flex; gap: 24px; padding: 16px 24px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 24px; flex-wrap: wrap;
+        }
+        .status-item { display: flex; align-items: center; gap: 8px; }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .status-dot.online { background: var(--accent-2); }
+        .status-dot.busy { background: var(--accent-3); }
+        .status-dot.offline { background: var(--text-secondary); }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .status-label { font-size: 13px; color: var(--text-secondary); }
+        .status-value { font-size: 13px; font-weight: 600; color: #fff; }
+        .workflow-container {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+        .workflow-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: #fff;
+        }
+        .workflow-svg { width: 100%; min-width: 800px; }
+        .prompt-builder {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .prompt-builder h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: #fff;
+        }
+        .prompt-selectors {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .selector-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .selector-group select {
+            width: 100%; padding: 10px 14px;
+            border-radius: 8px; border: 1px solid var(--border);
+            background: var(--surface-2);
+            color: var(--text); font-size: 14px;
+            cursor: pointer;
+        }
+        .generated-prompt {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px; line-height: 1.8;
+            color: var(--accent);
+            position: relative;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 12px; right: 12px;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        .arch-diagram {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+        .layer {
+            display: flex; gap: 16px;
+            margin-bottom: 16px; padding: 16px;
+            background: var(--surface-2);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .layer-label {
+            width: 120px;
+            font-size: 12px; font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            display: flex; align-items: center;
+        }
+        .layer-components {
+            display: flex; gap: 12px;
+            flex-wrap: wrap; flex: 1;
+        }
+        .component {
+            padding: 10px 18px; border-radius: 8px;
+            font-size: 13px; font-weight: 500;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .component.fastapi { border-color: var(--fastapi); color: var(--fastapi); }
+        .component.react { border-color: var(--react); color: var(--react); }
+        .component.vite { border-color: var(--vite); color: var(--vite); }
+        .component.infra { border-color: var(--accent-3); color: var(--accent-3); }
+        .arrow-down {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 20px;
+            margin: 8px 0;
+        }
+        @media (max-width: 768px) {
+            .header-content { flex-direction: column; align-items: flex-start; }
+            .main { padding: 16px; }
+            .cards-grid { grid-template-columns: 1fr; }
+            .status-bar { flex-direction: column; gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🤖</div>
+                <div class="logo-text">
+                    <h1>Claude Code SubAgent Command Center</h1>
+                    <p>FastAPI + Vite/React Professional Development Stack</p>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <span class="env-badge dev">● Development</span>
+                <span class="env-badge staging">● Staging</span>
+                <span class="env-badge prod">● Production</span>
+            </div>
+        </div>
+    </header>
+    <nav class="nav-tabs">
+        <button class="nav-tab active" onclick="showPanel('dashboard')">📊 Dashboard</button>
+        <button class="nav-tab" onclick="showPanel('agents')">🎯 SubAgents</button>
+        <button class="nav-tab" onclick="showPanel('workflow')">🔄 Workflow</button>
+        <button class="nav-tab" onclick="showPanel('architecture')">🏗️ Architecture</button>
+        <button class="nav-tab" onclick="showPanel('prompts')">💬 Prompt Builder</button>
+        <button class="nav-tab" onclick="showPanel('security')">🔒 Security</button>
+        <button class="nav-tab" onclick="showPanel('deploy')">🚀 Deployment</button>
+    </nav>
+    <main class="main">
+
+        <!-- Dashboard Panel -->
+        <div id="dashboard" class="panel active">
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot online"></div>
+                    <span class="status-label">project-planner</span>
+                    <span class="status-value">Opus Ready</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot online"></div>
+                    <span class="status-label">fastapi-architect</span>
+                    <span class="status-value">Opus Ready</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot online"></div>
+                    <span class="status-label">vite-react-developer</span>
+                    <span class="status-value">Sonnet Ready</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot busy"></div>
+                    <span class="status-label">security-auditor</span>
+                    <span class="status-value">Scanning...</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot online"></div>
+                    <span class="status-label">test-automator</span>
+                    <span class="status-value">Sonnet Ready</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot online"></div>
+                    <span class="status-label">web-deployer</span>
+                    <span class="status-value">Opus Ready</span>
+                </div>
+            </div>
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon planner">📋</div>
+                        <div>
+                            <div class="card-title">Project Planner</div>
+                            <div class="card-subtitle">Principal Engineer / Tech Lead</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        Decomposes business requirements into actionable technical plans. Coordinates cross-agent workflows, manages risks, and maintains the master development strategy.
+                    </div>
+                    <div class="card-tags">
+                        <span class="tag opus">Model: Opus</span>
+                        <span class="tag">Architecture</span>
+                        <span class="tag">Planning</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary" onclick="selectAgent('project-planner')">Select</button>
+                        <button class="btn" onclick="showAgentDetail('project-planner')">Details</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon backend">⚡</div>
+                        <div>
+                            <div class="card-title">FastAPI Architect</div>
+                            <div class="card-subtitle">Backend Engineering Specialist</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        Designs and implements production-grade FastAPI backends with async SQLAlchemy 2.0, Pydantic v2, OAuth2/JWT, and clean architecture patterns.
+                    </div>
+                    <div class="card-tags">
+                        <span class="tag opus">Model: Opus</span>
+                        <span class="tag">Python 3.12</span>
+                        <span class="tag">Async</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary" onclick="selectAgent('fastapi-architect')">Select</button>
+                        <button class="btn" onclick="showAgentDetail('fastapi-architect')">Details</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon frontend">⚛️</div>
+                        <div>
+                            <div class="card-title">Vite React Developer</div>
+                            <div class="card-subtitle">Frontend Engineering Specialist</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        Builds modern React 18+ applications with Vite, TypeScript 5, Tailwind CSS, Zustand, and TanStack Query. Focuses on performance and accessibility.
+                    </div>
+                    <div class="card-tags">
+                        <span class="tag sonnet">Model: Sonnet</span>
+                        <span class="tag">TypeScript</span>
+                        <span class="tag">Tailwind</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary" onclick="selectAgent('vite-react-developer')">Select</button>
+                        <button class="btn" onclick="showAgentDetail('vite-react-developer')">Details</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon security">🛡️</div>
+                        <div>
+                            <div class="card-title">Security Auditor</div>
+                            <div class="card-subtitle">Penetration Testing & Compliance</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        Performs comprehensive security reviews covering OWASP Top 10, dependency scanning, SAST/DAST, and infrastructure hardening for production readiness.
+                    </div>
+                    <div class="card-tags">
+                        <span class="tag opus">Model: Opus</span>
+                        <span class="tag critical">Critical Path</span>
+                        <span class="tag">OWASP</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary" onclick="selectAgent('security-auditor')">Select</button>
+                        <button class="btn" onclick="showAgentDetail('security-auditor')">Details</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon testing">🧪</div>
+                        <div>
+                            <div class="card-title">Test Automator</div>
+                            <div class="card-subtitle">QA Automation Architect</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        Implements comprehensive testing pyramids: pytest for backend, Vitest + React Testing Library for frontend, Playwright for E2E, and contract testing with Pact.
+                    </div>
+                    <div class="card-tags">
+                        <span class="tag sonnet">Model: Sonnet</span>
+                        <span class="tag">Coverage >90%</span>
+                        <span class="tag">CI/CD</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary" onclick="selectAgent('test-automator')">Select</button>
+                        <button class="btn" onclick="showAgentDetail('test-automator')">Details</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon deploy">🚀</div>
+                        <div>
+                            <div class="card-title">Web Deployer</div>
+                            <div class="card-subtitle">DevOps / SRE Specialist</div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        Manages Docker containerization, Kubernetes orchestration, Terraform IaC, GitHub Actions CI/CD, monitoring with Prometheus/Grafana, and incident response.
+                    </div>
+                    <div class="card-tags">
+                        <span class="tag opus">Model: Opus</span>
+                        <span class="tag">AWS/GCP/Azure</span>
+                        <span class="tag">K8s</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-primary" onclick="selectAgent('web-deployer')">Select</button>
+                        <button class="btn" onclick="showAgentDetail('web-deployer')">Details</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agents Detail Panel -->
+        <div id="agents" class="panel">
+            <div class="workflow-container">
+                <h2 class="workflow-title">Agent Capabilities Matrix</h2>
+                <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th style="text-align:left;padding:12px;color:var(--text-secondary);font-weight:600;">Agent</th>
+                            <th style="text-align:left;padding:12px;color:var(--text-secondary);font-weight:600;">Primary Skills</th>
+                            <th style="text-align:left;padding:12px;color:var(--text-secondary);font-weight:600;">Model</th>
+                            <th style="text-align:left;padding:12px;color:var(--text-secondary);font-weight:600;">Best For</th>
+                            <th style="text-align:left;padding:12px;color:var(--text-secondary);font-weight:600;">Collaborates With</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;font-weight:600;color:var(--accent-5);">project-planner</td>
+                            <td style="padding:12px;color:var(--text-secondary);">Architecture decisions, Task decomposition, Risk management, ADRs</td>
+                            <td style="padding:12px;"><span class="tag opus">Opus</span></td>
+                            <td style="padding:12px;color:var(--text-secondary);">Initial planning, Scope definition, Timeline estimation</td>
+                            <td style="padding:12px;color:var(--text-secondary);">All agents</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;font-weight:600;color:var(--fastapi);">fastapi-architect</td>
+                            <td style="padding:12px;color:var(--text-secondary);">API design, SQLAlchemy 2.0 async, Pydantic v2, OAuth2/JWT, Repository pattern</td>
+                            <td style="padding:12px;"><span class="tag opus">Opus</span></td>
+                            <td style="padding:12px;color:var(--text-secondary);">Backend features, Database schema, Auth implementation</td>
+                            <td style="padding:12px;color:var(--text-secondary);">vite-react-developer, security-auditor, test-automator</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;font-weight:600;color:var(--react);">vite-react-developer</td>
+                            <td style="padding:12px;color:var(--text-secondary);">React 18+, TypeScript 5, Vite 5, Tailwind CSS, Zustand, TanStack Query</td>
+                            <td style="padding:12px;"><span class="tag sonnet">Sonnet</span></td>
+                            <td style="padding:12px;color:var(--text-secondary);">UI components, API integration, State management, Responsive design</td>
+                            <td style="padding:12px;color:var(--text-secondary);">fastapi-architect, test-automator</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;font-weight:600;color:var(--accent-4);">security-auditor</td>
+                            <td style="padding:12px;color:var(--text-secondary);">OWASP Top 10, SAST/DAST, Penetration testing, Compliance (SOC2, GDPR)</td>
+                            <td style="padding:12px;"><span class="tag opus">Opus</span></td>
+                            <td style="padding:12px;color:var(--text-secondary);">Pre-release audits, Vulnerability assessment, Threat modeling</td>
+                            <td style="padding:12px;color:var(--text-secondary);">fastapi-architect, web-deployer</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;font-weight:600;color:var(--accent-2);">test-automator</td>
+                            <td style="padding:12px;color:var(--text-secondary);">pytest, Vitest, Playwright, Pact contract testing, Coverage analysis</td>
+                            <td style="padding:12px;"><span class="tag sonnet">Sonnet</span></td>
+                            <td style="padding:12px;color:var(--text-secondary);">Unit tests, Integration tests, E2E tests, CI test gates</td>
+                            <td style="padding:12px;color:var(--text-secondary);">fastapi-architect, vite-react-developer, web-deployer</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:12px;font-weight:600;color:var(--accent-3);">web-deployer</td>
+                            <td style="padding:12px;color:var(--text-secondary);">Docker, Kubernetes, Terraform, GitHub Actions, Prometheus, Grafana</td>
+                            <td style="padding:12px;"><span class="tag opus">Opus</span></td>
+                            <td style="padding:12px;color:var(--text-secondary);">CI/CD pipelines, Infrastructure, Monitoring, Incident response</td>
+                            <td style="padding:12px;color:var(--text-secondary);">All agents (receives artifacts, deploys)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Workflow Panel -->
+        <div id="workflow" class="panel">
+            <div class="workflow-container">
+                <h2 class="workflow-title">Feature Development Workflow</h2>
+                <svg class="workflow-svg" viewBox="0 0 900 500" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0" y="0" width="900" height="500" fill="none"/>
+                    <!-- Phase 1: Planning -->
+                    <rect x="20" y="20" width="200" height="80" rx="8" fill="#1c2128" stroke="#a371f7" stroke-width="2"/>
+                    <text x="120" y="45" text-anchor="middle" fill="#a371f7" font-size="13" font-weight="600">Phase 1: Planning</text>
+                    <text x="120" y="65" text-anchor="middle" fill="#8b949e" font-size="11">project-planner</text>
+                    <text x="120" y="82" text-anchor="middle" fill="#8b949e" font-size="11">Architecture + Task Decomposition</text>
+                    <path d="M 230 60 L 270 60" stroke="#30363d" stroke-width="2"/>
+                    <!-- Phase 2: Contract -->
+                    <rect x="280" y="20" width="200" height="80" rx="8" fill="#1c2128" stroke="#58a6ff" stroke-width="2"/>
+                    <text x="380" y="45" text-anchor="middle" fill="#58a6ff" font-size="13" font-weight="600">Phase 2: API Contract</text>
+                    <text x="380" y="65" text-anchor="middle" fill="#8b949e" font-size="11">fastapi-architect</text>
+                    <text x="380" y="82" text-anchor="middle" fill="#8b949e" font-size="11">OpenAPI Spec + Schema Design</text>
+                    <path d="M 490 60 L 530 60" stroke="#30363d" stroke-width="2"/>
+                    <!-- Parallel: Backend + Frontend -->
+                    <rect x="540" y="20" width="160" height="80" rx="8" fill="#1c2128" stroke="#009688" stroke-width="2"/>
+                    <text x="620" y="45" text-anchor="middle" fill="#009688" font-size="13" font-weight="600">Backend Build</text>
+                    <text x="620" y="65" text-anchor="middle" fill="#8b949e" font-size="11">fastapi-architect</text>
+                    <text x="620" y="82" text-anchor="middle" fill="#8b949e" font-size="11">API + DB + Auth</text>
+                    <rect x="540" y="120" width="160" height="80" rx="8" fill="#1c2128" stroke="#61dafb" stroke-width="2"/>
+                    <text x="620" y="145" text-anchor="middle" fill="#61dafb" font-size="13" font-weight="600">Frontend Build</text>
+                    <text x="620" y="165" text-anchor="middle" fill="#8b949e" font-size="11">vite-react-developer</text>
+                    <text x="620" y="182" text-anchor="middle" fill="#8b949e" font-size="11">UI + Integration</text>
+                    <path d="M 700 60 L 740 60 L 740 160 L 780 160" stroke="#30363d" stroke-width="2"/>
+                    <path d="M 700 160 L 780 160" stroke="#30363d" stroke-width="2"/>
+                    <!-- Phase 3: Testing -->
+                    <rect x="20" y="240" width="200" height="80" rx="8" fill="#1c2128" stroke="#3fb950" stroke-width="2"/>
+                    <text x="120" y="265" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="600">Phase 3: Testing</text>
+                    <text x="120" y="285" text-anchor="middle" fill="#8b949e" font-size="11">test-automator</text>
+                    <text x="120" y="302" text-anchor="middle" fill="#8b949e" font-size="11">Unit + Integration + E2E</text>
+                    <path d="M 230 280 L 270 280" stroke="#30363d" stroke-width="2"/>
+                    <!-- Phase 4: Security -->
+                    <rect x="280" y="240" width="200" height="80" rx="8" fill="#1c2128" stroke="#f85149" stroke-width="2"/>
+                    <text x="380" y="265" text-anchor="middle" fill="#f85149" font-size="13" font-weight="600">Phase 4: Security Audit</text>
+                    <text x="380" y="285" text-anchor="middle" fill="#8b949e" font-size="11">security-auditor</text>
+                    <text x="380" y="302" text-anchor="middle" fill="#8b949e" font-size="11">OWASP Scan + Pen Test</text>
+                    <circle cx="520" cy="280" r="20" fill="#1c2128" stroke="#d29922" stroke-width="2"/>
+                    <text x="520" y="285" text-anchor="middle" fill="#d29922" font-size="14" font-weight="bold">?</text>
+                    <path d="M 540 280 L 580 280" stroke="#30363d" stroke-width="2"/>
+                    <path d="M 520 260 L 520 220 L 380 220 L 380 240" stroke="#f85149" stroke-width="2" stroke-dasharray="5,5"/>
+                    <text x="450" y="215" text-anchor="middle" fill="#f85149" font-size="11">Remediation Loop</text>
+                    <!-- Phase 5: Deploy -->
+                    <rect x="590" y="240" width="200" height="80" rx="8" fill="#1c2128" stroke="#d29922" stroke-width="2"/>
+                    <text x="690" y="265" text-anchor="middle" fill="#d29922" font-size="13" font-weight="600">Phase 5: Deploy</text>
+                    <text x="690" y="285" text-anchor="middle" fill="#8b949e" font-size="11">web-deployer</text>
+                    <text x="690" y="302" text-anchor="middle" fill="#8b949e" font-size="11">Staging to Production</text>
+                    <!-- Phase 6: Monitor -->
+                    <rect x="320" y="360" width="260" height="80" rx="8" fill="#1c2128" stroke="#58a6ff" stroke-width="2"/>
+                    <text x="450" y="385" text-anchor="middle" fill="#58a6ff" font-size="13" font-weight="600">Phase 6: Monitor & Iterate</text>
+                    <text x="450" y="405" text-anchor="middle" fill="#8b949e" font-size="11">Prometheus + Grafana + Alerts</text>
+                    <text x="450" y="422" text-anchor="middle" fill="#8b949e" font-size="11">Feedback to project-planner</text>
+                    <!-- Legend -->
+                    <rect x="20" y="360" width="280" height="120" rx="8" fill="#0f1117" stroke="#30363d" stroke-width="1"/>
+                    <text x="30" y="380" fill="#fff" font-size="12" font-weight="600">Legend</text>
+                    <rect x="30" y="390" width="12" height="12" rx="2" fill="#a371f7"/><text x="48" y="401" fill="#8b949e" font-size="11">Planning</text>
+                    <rect x="30" y="410" width="12" height="12" rx="2" fill="#009688"/><text x="48" y="421" fill="#8b949e" font-size="11">Backend</text>
+                    <rect x="30" y="430" width="12" height="12" rx="2" fill="#61dafb"/><text x="48" y="441" fill="#8b949e" font-size="11">Frontend</text>
+                    <rect x="120" y="390" width="12" height="12" rx="2" fill="#3fb950"/><text x="138" y="401" fill="#8b949e" font-size="11">Testing</text>
+                    <rect x="120" y="410" width="12" height="12" rx="2" fill="#f85149"/><text x="138" y="421" fill="#8b949e" font-size="11">Security</text>
+                    <rect x="120" y="430" width="12" height="12" rx="2" fill="#d29922"/><text x="138" y="441" fill="#8b949e" font-size="11">Deploy</text>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Architecture Panel -->
+        <div id="architecture" class="panel">
+            <div class="arch-diagram">
+                <h2 class="workflow-title">System Architecture — FastAPI + Vite/React</h2>
+                <div class="layer">
+                    <div class="layer-label">Client Layer</div>
+                    <div class="layer-components">
+                        <div class="component react">⚛️ Web App (React 18 + Vite)</div>
+                        <div class="component react">📱 Mobile App (Future)</div>
+                        <div class="component react">🎛️ Admin Panel (React)</div>
+                    </div>
+                </div>
+                <div class="arrow-down">↓ HTTPS / HTTP2</div>
+                <div class="layer">
+                    <div class="layer-label">Edge Layer</div>
+                    <div class="layer-components">
+                        <div class="component infra">🌐 Cloud CDN (CloudFront)</div>
+                        <div class="component infra">🛡️ WAF / DDoS Protection</div>
+                        <div class="component infra">📦 Static Assets (S3)</div>
+                    </div>
+                </div>
+                <div class="arrow-down">↓</div>
+                <div class="layer">
+                    <div class="layer-label">Load Balancer</div>
+                    <div class="layer-components">
+                        <div class="component infra">⚖️ ALB / Nginx / Traefik</div>
+                        <div class="component infra">🔒 SSL Termination (Let's Encrypt)</div>
+                        <div class="component infra">⏱️ Rate Limiting</div>
+                    </div>
+                </div>
+                <div class="arrow-down">↓</div>
+                <div class="layer">
+                    <div class="layer-label">Application</div>
+                    <div class="layer-components">
+                        <div class="component fastapi">⚡ FastAPI (Uvicorn/Gunicorn)</div>
+                        <div class="component fastapi">🔐 Auth (OAuth2 + JWT)</div>
+                        <div class="component react">📄 React SPA (Nginx serve)</div>
+                        <div class="component fastapi">🔌 WebSocket Handler</div>
+                    </div>
+                </div>
+                <div class="arrow-down">↓</div>
+                <div class="layer">
+                    <div class="layer-label">Data Layer</div>
+                    <div class="layer-components">
+                        <div class="component infra">🐘 PostgreSQL (RDS/Cloud SQL)</div>
+                        <div class="component infra">⚡ Redis (ElastiCache)</div>
+                        <div class="component infra">📨 Celery + Redis (Queue)</div>
+                        <div class="component infra">📁 S3 / MinIO (File Storage)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="workflow-container">
+                <h3 style="color:#fff;margin-bottom:16px;">Technology Stack</h3>
+                <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th style="text-align:left;padding:10px;color:var(--text-secondary);">Layer</th>
+                            <th style="text-align:left;padding:10px;color:var(--text-secondary);">Technology</th>
+                            <th style="text-align:left;padding:10px;color:var(--text-secondary);">Purpose</th>
+                            <th style="text-align:left;padding:10px;color:var(--text-secondary);">Agent Owner</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">Frontend Framework</td><td style="padding:10px;color:var(--react);">React 18 + TypeScript 5</td><td style="padding:10px;color:var(--text-secondary);">UI components, state management</td><td style="padding:10px;">vite-react-developer</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">Build Tool</td><td style="padding:10px;color:var(--vite);">Vite 5</td><td style="padding:10px;color:var(--text-secondary);">Fast dev server, optimized builds</td><td style="padding:10px;">vite-react-developer</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">Styling</td><td style="padding:10px;color:var(--react);">Tailwind CSS 3</td><td style="padding:10px;color:var(--text-secondary);">Utility-first responsive design</td><td style="padding:10px;">vite-react-developer</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">State</td><td style="padding:10px;color:var(--react);">Zustand + TanStack Query</td><td style="padding:10px;color:var(--text-secondary);">Client state + Server state</td><td style="padding:10px;">vite-react-developer</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">Backend</td><td style="padding:10px;color:var(--fastapi);">FastAPI 0.110+</td><td style="padding:10px;color:var(--text-secondary);">Async API framework</td><td style="padding:10px;">fastapi-architect</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">ORM</td><td style="padding:10px;color:var(--fastapi);">SQLAlchemy 2.0 (async)</td><td style="padding:10px;color:var(--text-secondary);">Database abstraction</td><td style="padding:10px;">fastapi-architect</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">Validation</td><td style="padding:10px;color:var(--fastapi);">Pydantic v2</td><td style="padding:10px;color:var(--text-secondary);">Request/response schemas</td><td style="padding:10px;">fastapi-architect</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">Auth</td><td style="padding:10px;color:var(--fastapi);">OAuth2 + JWT</td><td style="padding:10px;color:var(--text-secondary);">Authentication/authorization</td><td style="padding:10px;">security-auditor + fastapi-architect</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">Container</td><td style="padding:10px;color:var(--accent-3);">Docker + Compose</td><td style="padding:10px;color:var(--text-secondary);">Development parity</td><td style="padding:10px;">web-deployer</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">Orchestration</td><td style="padding:10px;color:var(--accent-3);">K8s / ECS / Cloud Run</td><td style="padding:10px;color:var(--text-secondary);">Production deployment</td><td style="padding:10px;">web-deployer</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">IaC</td><td style="padding:10px;color:var(--accent-3);">Terraform</td><td style="padding:10px;color:var(--text-secondary);">Infrastructure provisioning</td><td style="padding:10px;">web-deployer</td></tr>
+                        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">CI/CD</td><td style="padding:10px;color:var(--accent-3);">GitHub Actions</td><td style="padding:10px;color:var(--text-secondary);">Automated pipelines</td><td style="padding:10px;">web-deployer</td></tr>
+                        <tr><td style="padding:10px;">Monitoring</td><td style="padding:10px;color:var(--accent-3);">Prometheus + Grafana</td><td style="padding:10px;color:var(--text-secondary);">Metrics and dashboards</td><td style="padding:10px;">web-deployer</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Prompt Builder Panel -->
+        <div id="prompts" class="panel">
+            <div class="prompt-builder">
+                <h3>🎯 Interactive Prompt Builder</h3>
+                <p style="color:var(--text-secondary);font-size:14px;margin-bottom:20px;">Select your task parameters to generate a precise Claude Code prompt for delegation.</p>
+                <div class="prompt-selectors">
+                    <div class="selector-group">
+                        <label>Primary Agent</label>
+                        <select id="agent-select" onchange="updatePrompt()">
+                            <option value="project-planner">📋 Project Planner</option>
+                            <option value="fastapi-architect">⚡ FastAPI Architect</option>
+                            <option value="vite-react-developer">⚛️ Vite React Developer</option>
+                            <option value="security-auditor">🛡️ Security Auditor</option>
+                            <option value="test-automator">🧪 Test Automator</option>
+                            <option value="web-deployer">🚀 Web Deployer</option>
+                        </select>
+                    </div>
+                    <div class="selector-group">
+                        <label>Task Type</label>
+                        <select id="task-select" onchange="updatePrompt()">
+                            <option value="implement">Implement Feature</option>
+                            <option value="review">Code Review</option>
+                            <option value="plan">Technical Planning</option>
+                            <option value="refactor">Refactor</option>
+                            <option value="debug">Debug Issue</option>
+                            <option value="deploy">Deploy</option>
+                        </select>
+                    </div>
+                    <div class="selector-group">
+                        <label>Complexity</label>
+                        <select id="complexity-select" onchange="updatePrompt()">
+                            <option value="simple">Simple (&lt; 2 hours)</option>
+                            <option value="medium" selected>Medium (2-8 hours)</option>
+                            <option value="complex">Complex (1-3 days)</option>
+                            <option value="epic">Epic (1-2 weeks)</option>
+                        </select>
+                    </div>
+                    <div class="selector-group">
+                        <label>Priority</label>
+                        <select id="priority-select" onchange="updatePrompt()">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="generated-prompt" id="generated-prompt">
+                    <button class="btn copy-btn" onclick="copyPrompt()">📋 Copy</button>
+                    <div id="prompt-text">Select parameters above to generate your prompt...</div>
+                </div>
+            </div>
+            <div class="workflow-container">
+                <h3 style="color:#fff;margin-bottom:16px;">Quick Prompt Templates</h3>
+                <div class="cards-grid" style="grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));">
+                    <div style="background:var(--surface-2);padding:16px;border-radius:8px;border:1px solid var(--border);">
+                        <div style="font-weight:600;color:var(--accent);margin-bottom:8px;">🚀 New Feature</div>
+                        <code style="font-size:12px;color:var(--text-secondary);display:block;white-space:pre-wrap;">Use project-planner to design and decompose the user authentication system with JWT, refresh tokens, and role-based access control. Include database schema, API contract, and frontend integration plan.</code>
+                    </div>
+                    <div style="background:var(--surface-2);padding:16px;border-radius:8px;border:1px solid var(--border);">
+                        <div style="font-weight:600;color:var(--fastapi);margin-bottom:8px;">⚡ Backend API</div>
+                        <code style="font-size:12px;color:var(--text-secondary);display:block;white-space:pre-wrap;">Use fastapi-architect to implement the order processing API with async SQLAlchemy, Pydantic v2 schemas, and proper error handling. Include unit tests and OpenAPI documentation.</code>
+                    </div>
+                    <div style="background:var(--surface-2);padding:16px;border-radius:8px;border:1px solid var(--border);">
+                        <div style="font-weight:600;color:var(--react);margin-bottom:8px;">⚛️ Frontend UI</div>
+                        <code style="font-size:12px;color:var(--text-secondary);display:block;white-space:pre-wrap;">Use vite-react-developer to build the order dashboard with TanStack Query, loading skeletons, error boundaries, and responsive Tailwind CSS. Connect to the order API endpoints.</code>
+                    </div>
+                    <div style="background:var(--surface-2);padding:16px;border-radius:8px;border:1px solid var(--border);">
+                        <div style="font-weight:600;color:var(--accent-4);margin-bottom:8px;">🛡️ Security Audit</div>
+                        <code style="font-size:12px;color:var(--text-secondary);display:block;white-space:pre-wrap;">Use security-auditor to perform a comprehensive security review of the authentication module. Check for OWASP Top 10 vulnerabilities, JWT implementation flaws, and input validation gaps.</code>
+                    </div>
+                    <div style="background:var(--surface-2);padding:16px;border-radius:8px;border:1px solid var(--border);">
+                        <div style="font-weight:600;color:var(--accent-2);margin-bottom:8px;">🧪 Testing</div>
+                        <code style="font-size:12px;color:var(--text-secondary);display:block;white-space:pre-wrap;">Use test-automator to write pytest unit tests for the order service, Vitest component tests for the dashboard, and Playwright E2E tests for the complete order flow.</code>
+                    </div>
+                    <div style="background:var(--surface-2);padding:16px;border-radius:8px;border:1px solid var(--border);">
+                        <div style="font-weight:600;color:var(--accent-3);margin-bottom:8px;">🚀 Deployment</div>
+                        <code style="font-size:12px;color:var(--text-secondary);display:block;white-space:pre-wrap;">Use web-deployer to containerize the application with multi-stage Docker builds, set up GitHub Actions CI/CD with staging and production gates, and configure AWS ECS deployment.</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Panel -->
+        <div id="security" class="panel">
+            <div class="workflow-container">
+                <h2 class="workflow-title">Security Gates & Checklist</h2>
+                <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th style="text-align:left;padding:12px;">Gate</th>
+                            <th style="text-align:left;padding:12px;">Trigger</th>
+                            <th style="text-align:left;padding:12px;">Owner</th>
+                            <th style="text-align:left;padding:12px;">Action on Failure</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;font-weight:600;color:var(--accent-4);">SAST</td>
+                            <td style="padding:12px;color:var(--text-secondary);">Every commit</td>
+                            <td style="padding:12px;">security-auditor</td>
+                            <td style="padding:12px;color:var(--accent-4);">Block merge, create ticket</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;font-weight:600;color:var(--accent-4);">Dependency Scan</td>
+                            <td style="padding:12px;color:var(--text-secondary);">Every PR</td>
+                            <td style="padding:12px;">security-auditor</td>
+                            <td style="padding:12px;color:var(--accent-3);">Auto-update if patch available</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;font-weight:600;color:var(--accent-4);">Container Scan</td>
+                            <td style="padding:12px;color:var(--text-secondary);">Every build</td>
+                            <td style="padding:12px;">web-deployer</td>
+                            <td style="padding:12px;color:var(--accent-4);">Fail CI, rebuild base image</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;font-weight:600;color:var(--accent-4);">Penetration Test</td>
+                            <td style="padding:12px;color:var(--text-secondary);">Pre-release</td>
+                            <td style="padding:12px;">security-auditor</td>
+                            <td style="padding:12px;color:var(--accent-4);">Hold release, fix critical</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:12px;font-weight:600;color:var(--accent-4);">Code Review</td>
+                            <td style="padding:12px;color:var(--text-secondary);">Every PR</td>
+                            <td style="padding:12px;">All agents</td>
+                            <td style="padding:12px;color:var(--accent-3);">Require 2 approvals</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <h3 style="color:#fff;margin-bottom:16px;">Per-Feature Security Checklist</h3>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;">
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-2);border-radius:8px;cursor:pointer;">
+                        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--accent-2);">
+                        <span style="font-size:14px;">Input validation on all endpoints (Pydantic + custom)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-2);border-radius:8px;cursor:pointer;">
+                        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--accent-2);">
+                        <span style="font-size:14px;">Output serialization (no raw ORM objects)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-2);border-radius:8px;cursor:pointer;">
+                        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--accent-2);">
+                        <span style="font-size:14px;">Authentication required (except public)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-2);border-radius:8px;cursor:pointer;">
+                        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--accent-2);">
+                        <span style="font-size:14px;">Authorization checks (RBAC decorators)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-2);border-radius:8px;cursor:pointer;">
+                        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--accent-2);">
+                        <span style="font-size:14px;">Rate limiting configured (slowapi / Redis)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-2);border-radius:8px;cursor:pointer;">
+                        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--accent-2);">
+                        <span style="font-size:14px;">SQL injection prevention (parameterized)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-2);border-radius:8px;cursor:pointer;">
+                        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--accent-2);">
+                        <span style="font-size:14px;">XSS prevention (React auto-escape + DOMPurify)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-2);border-radius:8px;cursor:pointer;">
+                        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--accent-2);">
+                        <span style="font-size:14px;">CSRF protection (SameSite + custom headers)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-2);border-radius:8px;cursor:pointer;">
+                        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--accent-2);">
+                        <span style="font-size:14px;">Secret management (env vars, no hardcoded)</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-2);border-radius:8px;cursor:pointer;">
+                        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--accent-2);">
+                        <span style="font-size:14px;">Logging (no sensitive data, structured JSON)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deployment Panel -->
+        <div id="deploy" class="panel">
+            <div class="workflow-container">
+                <h2 class="workflow-title">Deployment Pipeline</h2>
+                <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:200px;background:var(--surface-2);padding:20px;border-radius:12px;border:1px solid var(--border);text-align:center;">
+                        <div style="font-size:32px;margin-bottom:8px;">💻</div>
+                        <div style="font-weight:600;color:#fff;">Local</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">docker-compose up</div>
+                        <div style="font-size:12px;color:var(--text-secondary);">Hot reload, seeded data</div>
+                    </div>
+                    <div style="display:flex;align-items:center;color:var(--text-secondary);font-size:20px;">→</div>
+                    <div style="flex:1;min-width:200px;background:var(--surface-2);padding:20px;border-radius:12px;border:1px solid var(--border);text-align:center;">
+                        <div style="font-size:32px;margin-bottom:8px;">🔨</div>
+                        <div style="font-weight:600;color:#fff;">CI</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">GitHub Actions</div>
+                        <div style="font-size:12px;color:var(--text-secondary);">Parallel tests, coverage gates</div>
+                    </div>
+                    <div style="display:flex;align-items:center;color:var(--text-secondary);font-size:20px;">→</div>
+                    <div style="flex:1;min-width:200px;background:var(--surface-2);padding:20px;border-radius:12px;border:1px solid var(--border);text-align:center;">
+                        <div style="font-size:32px;margin-bottom:8px;">🧪</div>
+                        <div style="font-weight:600;color:#fff;">Staging</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Terraform apply</div>
+                        <div style="font-size:12px;color:var(--text-secondary);">Blue-green, smoke tests</div>
+                    </div>
+                    <div style="display:flex;align-items:center;color:var(--text-secondary);font-size:20px;">→</div>
+                    <div style="flex:1;min-width:200px;background:var(--surface-2);padding:20px;border-radius:12px;border:1px solid var(--accent-2);text-align:center;">
+                        <div style="font-size:32px;margin-bottom:8px;">🚀</div>
+                        <div style="font-weight:600;color:var(--accent-2);">Production</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Canary deploy</div>
+                        <div style="font-size:12px;color:var(--text-secondary);">Gradual traffic, rollback ready</div>
+                    </div>
+                </div>
+                <h3 style="color:#fff;margin-bottom:16px;">Rollback Procedures</h3>
+                <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th style="text-align:left;padding:12px;">Scenario</th>
+                            <th style="text-align:left;padding:12px;">Rollback Method</th>
+                            <th style="text-align:left;padding:12px;">Recovery Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;color:var(--accent-4);">Bad deployment</td>
+                            <td style="padding:12px;color:var(--text-secondary);">Switch load balancer to previous version</td>
+                            <td style="padding:12px;color:var(--accent-2);">&lt; 30 seconds</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;color:var(--accent-4);">Database issue</td>
+                            <td style="padding:12px;color:var(--text-secondary);">Alembic downgrade + restore from snapshot</td>
+                            <td style="padding:12px;color:var(--accent-2);">&lt; 5 minutes</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;color:var(--accent-4);">Security breach</td>
+                            <td style="padding:12px;color:var(--text-secondary);">Isolate containers, rotate secrets, redeploy</td>
+                            <td style="padding:12px;color:var(--accent-2);">&lt; 10 minutes</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:12px;color:var(--accent-4);">Data corruption</td>
+                            <td style="padding:12px;color:var(--text-secondary);">Point-in-time restore + replay valid transactions</td>
+                            <td style="padding:12px;color:var(--accent-2);">&lt; 1 hour</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function showPanel(panelId) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(panelId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function selectAgent(agent) {
+            document.getElementById('agent-select').value = agent;
+            updatePrompt();
+            showPanel('prompts');
+            document.querySelectorAll('.nav-tab')[4].classList.add('active');
+        }
+
+        function showAgentDetail(agent) {
+            showPanel('agents');
+            document.querySelectorAll('.nav-tab')[1].classList.add('active');
+        }
+
+        function updatePrompt() {
+            const agent = document.getElementById('agent-select').value;
+            const task = document.getElementById('task-select').value;
+            const complexity = document.getElementById('complexity-select').value;
+            const priority = document.getElementById('priority-select').value;
+
+            const prompts = {
+                'project-planner': {
+                    'implement': 'Use project-planner to decompose [FEATURE] into implementable tasks with acceptance criteria, timeline estimates, and risk assessment. Priority: ' + priority,
+                    'review': 'Use project-planner to review the current project state and identify technical debt, blockers, and optimization opportunities.',
+                    'plan': 'Use project-planner to create a comprehensive technical specification for [FEATURE] including architecture decisions, data model, API contract, and testing strategy.',
+                    'refactor': 'Use project-planner to analyze [COMPONENT] and create a refactoring plan that minimizes risk and maintains backward compatibility.',
+                    'debug': 'Use project-planner to coordinate investigation of [ISSUE] across all agents and establish a resolution timeline.',
+                    'deploy': 'Use project-planner to create a deployment runbook for [RELEASE] with rollback procedures and monitoring checkpoints.'
+                },
+                'fastapi-architect': {
+                    'implement': 'Use fastapi-architect to implement [FEATURE] with async SQLAlchemy 2.0, Pydantic v2 schemas, proper error handling, and comprehensive logging. Include OpenAPI documentation.',
+                    'review': 'Use fastapi-architect to review [FILE/PR] for API design patterns, database query efficiency, and async best practices.',
+                    'plan': 'Use fastapi-architect to design the API contract and database schema for [FEATURE] with relationship diagrams and migration strategy.',
+                    'refactor': 'Use fastapi-architect to refactor [MODULE] for better separation of concerns, dependency injection, and testability.',
+                    'debug': 'Use fastapi-architect to investigate [ISSUE] in the backend, trace database queries, and identify performance bottlenecks.',
+                    'deploy': 'Use fastapi-architect to add health check endpoints, metrics exporters (/metrics), and structured logging for production monitoring.'
+                },
+                'vite-react-developer': {
+                    'implement': 'Use vite-react-developer to build [COMPONENT/PAGE] with React 18, TypeScript, Tailwind CSS, TanStack Query, and proper loading/error states. Ensure WCAG 2.1 AA accessibility.',
+                    'review': 'Use vite-react-developer to review [FILE/PR] for React best practices, performance optimization, and accessibility compliance.',
+                    'plan': 'Use vite-react-developer to design the UI/UX for [FEATURE] with component hierarchy, state management plan, and responsive breakpoints.',
+                    'refactor': 'Use vite-react-developer to refactor [COMPONENT] for better reusability, performance, and maintainability. Extract custom hooks where appropriate.',
+                    'debug': 'Use vite-react-developer to investigate [ISSUE] in the frontend, check API integration, state updates, and rendering performance.',
+                    'deploy': 'Use vite-react-developer to configure environment-specific builds, CDN asset paths, and error tracking integration (Sentry).' 
+                },
+                'security-auditor': {
+                    'implement': 'Use security-auditor to implement security controls for [FEATURE] including input validation, output encoding, and access control.',
+                    'review': 'Use security-auditor to perform a comprehensive security review of [FILE/PR]. Check for OWASP Top 10, injection flaws, and authentication bypasses.',
+                    'plan': 'Use security-auditor to create a threat model for [FEATURE] with attack surface analysis and mitigation strategies.',
+                    'refactor': 'Use security-auditor to review [MODULE] for security anti-patterns and recommend hardening measures.',
+                    'debug': 'Use security-auditor to investigate the security impact of [ISSUE] and recommend immediate containment measures.',
+                    'deploy': 'Use security-auditor to perform pre-deployment penetration testing and sign off on security readiness.'
+                },
+                'test-automator': {
+                    'implement': 'Use test-automator to implement comprehensive tests for [FEATURE]: pytest unit tests for backend logic, Vitest component tests for UI, and Playwright E2E tests for critical user journeys.',
+                    'review': 'Use test-automator to review test coverage for [MODULE] and identify gaps in unit, integration, and E2E testing.',
+                    'plan': 'Use test-automator to design the testing strategy for [FEATURE] with test pyramid distribution, mocking strategy, and CI integration plan.',
+                    'refactor': 'Use test-automator to refactor the test suite for [MODULE] to improve reliability, speed, and maintainability.',
+                    'debug': 'Use test-automator to investigate flaky tests in [TEST_SUITE] and implement stabilization measures.',
+                    'deploy': 'Use test-automator to configure CI test gates, coverage thresholds, and post-deployment smoke tests.'
+                },
+                'web-deployer': {
+                    'implement': 'Use web-deployer to set up the infrastructure for [FEATURE] including Docker containers, Terraform modules, and Kubernetes manifests.',
+                    'review': 'Use web-deployer to review [INFRASTRUCTURE_CODE] for security, cost optimization, and best practices.',
+                    'plan': 'Use web-deployer to design the deployment architecture for [FEATURE] with environment strategy, scaling policies, and disaster recovery.',
+                    'refactor': 'Use web-deployer to refactor [INFRASTRUCTURE] for better resource utilization, security hardening, and cost reduction.',
+                    'debug': 'Use web-deployer to investigate [INCIDENT] in production, analyze logs/metrics, and coordinate incident response.',
+                    'deploy': 'Use web-deployer to execute deployment of [RELEASE] to [ENVIRONMENT] with blue-green strategy, health checks, and rollback readiness.'
+                }
+            };
+
+            const prompt = prompts[agent][task] || 'Select an agent and task type to generate a prompt.';
+            document.getElementById('prompt-text').textContent = '> ' + prompt;
+        }
+
+        function copyPrompt() {
+            const text = document.getElementById('prompt-text').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                btn.textContent = '✅ Copied!';
+                setTimeout(() => btn.textContent = '📋 Copy', 2000);
+            });
+        }
+
+        // Initialize with default prompt
+        updatePrompt();
+    </script>
+</body>
+</html>

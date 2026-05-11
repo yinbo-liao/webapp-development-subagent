@@ -1,0 +1,77 @@
+# Parallel Configuration — PARL Execution Settings
+
+version: "1.0"
+model: "parallel-agent-reinforcement-learning"
+
+# Global parallelism limits
+limits:
+  max_concurrent_agents: 6       # One per agent definition
+  max_concurrent_file_writes: 4  # Avoid filesystem contention
+  max_concurrent_api_calls: 3    # Rate limit protection
+
+# Dependency resolution
+dependency_mode: "auto"          # auto | strict | relaxed
+# auto: Detect file/contract dependencies, sequentialize as needed
+# strict: Run everything sequentially (debug mode)
+# relaxed: Run maximum parallelism, handle conflicts post-hoc
+
+# Per-agent parallel settings
+agents:
+  project-planner:
+    concurrency: 1               # Singleton — only one planner at a time
+    blocks: [fastapi-architect, vite-react-developer, security-auditor, test-automator, web-deployer]
+
+  fastapi-architect:
+    concurrency: 3               # Up to 3 endpoints built in parallel
+    needs_contracts: true        # Requires API contracts before starting
+    can_parallelize_with: [vite-react-developer, security-auditor]
+
+  vite-react-developer:
+    concurrency: 4               # Up to 4 components in parallel
+    needs_contracts: true
+    can_parallelize_with: [fastapi-architect, test-automator]
+
+  security-auditor:
+    concurrency: 2               # Audit 2 modules at a time
+    runs_alongside: [fastapi-architect, vite-react-developer]
+    gates: [deployment]          # Must pass before deployment proceeds
+
+  test-automator:
+    concurrency: 3               # Unit, integration, e2e can all run in parallel
+    depends_on_output: [fastapi-architect, vite-react-developer]
+    can_parallelize_with: [security-auditor]
+
+  web-deployer:
+    concurrency: 2               # Per-environment parallelism
+    gates_on: [test-automator, security-auditor]
+    requires: all_tests_passed + security_audit_clean
+
+# Parallel group definitions for common patterns
+parallel_groups:
+  full_stack_feature:
+    - agent: fastapi-architect
+      scope: "endpoint implementation"
+    - agent: vite-react-developer
+      scope: "frontend component"
+    - agent: security-auditor
+      scope: "security review"
+    # Tests and deployment come after this group
+
+  testing_suite:
+    - agent: test-automator
+      scope: "unit tests"
+    - agent: test-automator
+      scope: "integration tests"
+    - agent: test-automator
+      scope: "e2e tests"
+
+# Timeout and retry
+timeouts:
+  agent_max_runtime_seconds: 600     # 10 minutes per agent task
+  total_pipeline_timeout_seconds: 3600  # 1 hour total
+
+retry:
+  max_retries: 2
+  backoff: "exponential"             # 1s, 4s, 16s
+  retry_on: [context_overflow, api_error, timeout]
+  no_retry_on: [security_violation, contract_mismatch, test_failure]

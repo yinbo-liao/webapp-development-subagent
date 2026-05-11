@@ -1,0 +1,64 @@
+# Cache Policy — Token Savings Through Strategic Caching
+# Target: 75-83% token savings on repeated context loads
+
+version: "1.0"
+target_savings: 0.79  # 79% average
+
+# What gets cached and for how long
+caches:
+  static_core:
+    files:
+      - SOUL.md
+      - AGENTS.md
+      - TOOLS.md
+      - MEMORY.md
+    ttl: "session"           # Cache for entire session
+    invalidation: "on-edit"  # Only invalidate when files change
+    estimated_savings: 0.85
+
+  agent_definitions:
+    files:
+      - agents/*.md
+    ttl: "session"
+    invalidation: "on-edit"
+    estimated_savings: 0.80
+
+  vault_reference:
+    files:
+      - vault/02_reference/**/*
+    ttl: "5-turns"           # Re-read periodically to stay fresh
+    invalidation: "on-edit"
+    estimated_savings: 0.75
+
+  vault_thinking:
+    files:
+      - vault/01_thinking/**/*
+      - vault/03_creating/**/*
+    ttl: "3-turns"           # Active docs change frequently
+    invalidation: "on-edit"
+    estimated_savings: 0.70
+
+  learnings:
+    files:
+      - .learnings/**/*
+    ttl: "10-turns"          # Rarely changes during a session
+    invalidation: "on-append"
+    estimated_savings: 0.90
+
+# Cache warming strategy on cold start
+warmup:
+  on_session_start:
+    - read: [SOUL.md, AGENTS.md, TOOLS.md]  # Always hot
+      priority: critical
+    - read: [progress.txt]                    # Restore checkpoint
+      priority: critical
+  on_new_task:
+    - read_agent_definition: true             # Warm the assigned agent
+    - read_relevant_vault_sections: true      # Pre-fetch probable references
+
+# Metrics to track
+metrics:
+  - cache_hit_rate
+  - tokens_saved_per_turn
+  - files_most_re-read
+  - files_never_re-read     # Candidates for cache removal
