@@ -1,0 +1,29 @@
+# Enterprise Web Development System — Runtime Dependencies
+# Generated project dependencies are in requirements-generated.txt
+
+# Core
+pyyaml>=6.0
+jinja2>=3.1.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# LLM Integration (set ANTHROPIC_API_KEY to enable AI-powered generation)
+anthropic>=0.30.0
+
+# Security
+bandit>=1.7.0
+safety>=2.3.0
+cryptography>=41.0.0
+
+# Code Analysis
+mccabe>=0.7.0
+radon>=6.0.0
+
+# Performance Profiling
+psutil>=5.9.0
+
+# Development
+black>=23.0.0
+isort>=5.12.0
+mypy>=1.5.0
+flake8>=6.1.0

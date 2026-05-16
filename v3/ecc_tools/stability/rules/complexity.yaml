@@ -1,0 +1,64 @@
+# Complexity Threshold Rules for Stability Analysis
+rules:
+  - id: "STAB-COMPLEX-001"
+    name: "Cyclomatic Complexity Threshold"
+    severity: high
+    threshold: 20
+    warning_threshold: 10
+    description: "McCabe cyclomatic complexity per function"
+
+  - id: "STAB-COMPLEX-002"
+    name: "Cognitive Complexity Threshold"
+    severity: medium
+    threshold: 15
+    description: "Cognitive complexity per function"
+
+  - id: "STAB-COMPLEX-003"
+    name: "Function Length Threshold"
+    severity: medium
+    threshold: 50
+    description: "Maximum function length in lines"
+
+  - id: "STAB-COMPLEX-004"
+    name: "Nesting Depth Threshold"
+    severity: medium
+    threshold: 4
+    description: "Maximum control flow nesting depth"
+
+  - id: "STAB-COMPLEX-005"
+    name: "Class Length Threshold"
+    severity: low
+    threshold: 300
+    description: "Maximum class length in lines"
+
+  - id: "STAB-COMPLEX-006"
+    name: "File Length Threshold"
+    severity: medium
+    threshold: 500
+    description: "Maximum file length in lines"
+
+  - id: "STAB-ERR-001"
+    name: "Bare Except Clause"
+    severity: high
+    description: "Catching all exceptions with bare 'except:'"
+
+  - id: "STAB-ERR-002"
+    name: "Empty Except Block"
+    severity: high
+    description: "Exception handler with only 'pass'"
+
+  - id: "STAB-TYPE-001"
+    name: "Low Type Annotation Coverage"
+    severity: medium
+    threshold: 0.8
+    description: "Minimum type annotation coverage ratio"
+
+  - id: "STAB-RES-001"
+    name: "File Open Without Context Manager"
+    severity: high
+    description: "File opened without 'with' statement"
+
+  - id: "STAB-CONC-001"
+    name: "Mutable Default in Async Function"
+    severity: high
+    description: "Mutable default argument in async function"

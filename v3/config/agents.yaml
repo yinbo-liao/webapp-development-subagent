@@ -1,0 +1,145 @@
+# Enterprise Web Development System - Agent Configuration
+
+agents:
+  frontend:
+    enabled: true
+    priority: 2
+    capabilities:
+      - react_component_generation
+      - nextjs_page_generation
+      - api_client_generation
+      - styling_with_tailwind
+      - accessibility_compliance
+    ecc_validation: true
+    auto_fix: true
+
+  backend:
+    enabled: true
+    priority: 2
+    capabilities:
+      - fastapi_api_generation
+      - sqlalchemy_model_generation
+      - pydantic_schema_generation
+      - jwt_auth_implementation
+      - middleware_generation
+    ecc_validation: true
+    auto_fix: true
+
+  database:
+    enabled: true
+    priority: 2
+    capabilities:
+      - postgresql_schema_design
+      - alembic_migration_generation
+      - seed_data_generation
+      - query_optimization
+    ecc_validation: true
+    auto_fix: false
+
+  security:
+    enabled: true
+    priority: 1
+    capabilities:
+      - sast_scanning
+      - dependency_vulnerability_scanning
+      - secret_detection
+      - compliance_checking
+    ecc_validation: false
+    auto_fix: false
+
+  performance:
+    enabled: true
+    priority: 1
+    capabilities:
+      - code_profiling
+      - bottleneck_detection
+      - load_testing
+      - cache_optimization
+    ecc_validation: false
+    auto_fix: false
+
+  qa:
+    enabled: true
+    priority: 3
+    capabilities:
+      - unit_test_generation
+      - integration_test_generation
+      - e2e_test_generation
+      - coverage_analysis
+    ecc_validation: true
+    auto_fix: false
+
+  devops:
+    enabled: true
+    priority: 3
+    capabilities:
+      - dockerfile_generation
+      - docker_compose_generation
+      - kubernetes_manifest_generation
+      - terraform_configuration
+      - ci_cd_pipeline_generation
+    ecc_validation: true
+    auto_fix: false
+
+  maintenance:
+    enabled: true
+    priority: 3
+    capabilities:
+      - code_review
+      - technical_debt_analysis
+      - documentation_generation
+      - refactoring_suggestions
+    ecc_validation: false
+    auto_fix: false
+
+# Quality Gates
+quality_gates:
+  security:
+    max_critical: 0
+    max_high: 5
+    block_on_failure: true
+
+  stability:
+    max_critical: 0
+    max_cyclomatic_complexity: 10
+    max_cognitive_complexity: 15
+    block_on_failure: true
+
+  performance:
+    max_critical: 0
+    max_response_time_ms: 200
+    min_throughput_rps: 100
+    block_on_failure: true
+
+  maintainability:
+    min_maintainability_index: 70
+    max_halstead_volume: 1500
+    min_type_coverage: 0.8
+    block_on_failure: false
+
+# Communication Protocol
+communication:
+  message_bus:
+    type: redis
+    host: localhost
+    port: 6379
+    channel: "enterprise-dev-system"
+
+  protocol:
+    version: "1.0"
+    message_types:
+      - TASK_ASSIGNMENT
+      - TASK_COMPLETE
+      - TASK_BLOCKED
+      - ARTIFACT_DELIVERED
+      - REVIEW_REQUEST
+      - REVIEW_FEEDBACK
+      - DEPENDENCY_REQUEST
+
+# Logging
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/enterprise-dev-system.log"
+  max_size: "10MB"
+  backup_count: 5

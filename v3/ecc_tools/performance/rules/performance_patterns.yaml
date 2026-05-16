@@ -1,0 +1,59 @@
+# Performance Anti-Pattern Rules
+rules:
+  - id: "PERF-DB-001"
+    name: "N+1 Query Detection"
+    severity: critical
+    description: "Database query executed inside a loop"
+    patterns:
+      - query
+      - filter
+      - find
+      - select
+      - execute
+
+  - id: "PERF-DB-002"
+    name: "Unbounded Query Without Pagination"
+    severity: high
+    description: "Query without LIMIT/OFFSET or cursor pagination"
+
+  - id: "PERF-ALGO-001"
+    name: "Nested Loop O(n^2)"
+    severity: high
+    threshold: 3
+    description: "Deeply nested loops with expensive operations"
+
+  - id: "PERF-ALGO-002"
+    name: "Repeated Function Calls in Loop"
+    severity: medium
+    description: "Same function called multiple times with identical arguments"
+
+  - id: "PERF-ALGO-003"
+    name: "List Operations Inside Loop"
+    severity: medium
+    description: "append/extend/insert inside loop body"
+
+  - id: "PERF-ASYNC-001"
+    name: "Blocking Operation in Async Context"
+    severity: high
+    blocking_operations:
+      - time.sleep
+      - requests.get
+      - requests.post
+      - open
+      - subprocess.run
+
+  - id: "PERF-MEM-001"
+    name: "Entire File Loaded into Memory"
+    severity: medium
+    description: "Using read() or readlines() on large files"
+
+  - id: "PERF-MEM-002"
+    name: "String Concatenation in Loop"
+    severity: low
+    threshold: 5
+    description: "Multiple string concatenations in loop body"
+
+  - id: "PERF-CACHE-001"
+    name: "Missing Caching on Expensive Function"
+    severity: medium
+    description: "Expensive function without caching decorator"

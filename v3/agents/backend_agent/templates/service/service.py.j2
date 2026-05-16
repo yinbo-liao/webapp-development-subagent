@@ -1,0 +1,88 @@
+from typing import List, Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.models.{{ model_file }} import {{ entity_name }}
+from app.schemas.{{ schema_file }} import {{ entity_name }}Create, {{ entity_name }}Update
+from app.core.exceptions import DatabaseError, NotFoundError
+from app.core.audit import log_action
+
+
+class {{ entity_name }}Service:
+    """{{ entity_name }} service layer.
+
+    Handles business logic and database operations.
+    """
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_all(self, skip: int = 0, limit: int = 100) -> List[{{ entity_name }}]:
+        """Get all active {{ entity_name }}s with pagination."""
+        try:
+            stmt = (
+                select({{ entity_name }})
+                .where({{ entity_name }}.is_active == True)
+                .offset(skip)
+                .limit(limit)
+            )
+            result = await self.db.execute(stmt)
+            return list(result.scalars().all())
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to fetch {{ entity_name.lower() }}s: {e}")
+
+    async def get_by_id(self, item_id: int) -> Optional[{{ entity_name }}]:
+        """Get {{ entity_name }} by ID."""
+        try:
+            stmt = select({{ entity_name }}).where(
+                {{ entity_name }}.id == item_id,
+                {{ entity_name }}.is_active == True,
+            )
+            result = await self.db.execute(stmt)
+            item = result.scalar_one_or_none()
+            if not item:
+                raise NotFoundError(f"{{ entity_name }} with id {item_id} not found")
+            return item
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Failed to fetch {{ entity_name.lower() }}: {e}")
+
+    async def create(self, item: {{ entity_name }}Create, user_id: int) -> {{ entity_name }}:
+        """Create new {{ entity_name }}."""
+        try:
+            db_item = {{ entity_name }}(**item.model_dump(), created_by=user_id)
+            self.db.add(db_item)
+            await self.db.commit()
+            await self.db.refresh(db_item)
+            log_action("create", "{{ resource_name }}", db_item.id, user_id)
+            return db_item
+        except SQLAlchemyError as e:
+            await self.db.rollback()
+            raise DatabaseError(f"Failed to create {{ entity_name.lower() }}: {e}")
+
+    async def update(self, item_id: int, item: {{ entity_name }}Update, user_id: int) -> {{ entity_name }}:
+        """Update existing {{ entity_name }}."""
+        try:
+            db_item = await self.get_by_id(item_id)
+            for field, value in item.model_dump(exclude_unset=True).items():
+                setattr(db_item, field, value)
+            db_item.updated_by = user_id
+            await self.db.commit()
+            await self.db.refresh(db_item)
+            log_action("update", "{{ resource_name }}", db_item.id, user_id)
+            return db_item
+        except SQLAlchemyError as e:
+            await self.db.rollback()
+            raise DatabaseError(f"Failed to update {{ entity_name.lower() }}: {e}")
+
+    async def delete(self, item_id: int, user_id: int) -> None:
+        """Soft delete {{ entity_name }}."""
+        try:
+            db_item = await self.get_by_id(item_id)
+            db_item.is_active = False
+            db_item.updated_by = user_id
+            await self.db.commit()
+            log_action("delete", "{{ resource_name }}", db_item.id, user_id)
+        except SQLAlchemyError as e:
+            await self.db.rollback()
+            raise DatabaseError(f"Failed to delete {{ entity_name.lower() }}: {e}")

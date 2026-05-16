@@ -1,0 +1,64 @@
+# Maintainability Rules for Code Quality Analysis
+rules:
+  - id: "MAINT-SMELL-001"
+    name: "Long Parameter List"
+    severity: low
+    threshold: 5
+    description: "Function with too many parameters"
+
+  - id: "MAINT-SMELL-002"
+    name: "Many Return Statements"
+    severity: low
+    threshold: 4
+    description: "Function with excessive return statements"
+
+  - id: "MAINT-SMELL-003"
+    name: "God Class"
+    severity: medium
+    threshold: 20
+    description: "Class with too many methods"
+
+  - id: "MAINT-SMELL-004"
+    name: "Feature Envy"
+    severity: low
+    description: "Class that calls external methods more than its own"
+
+  - id: "MAINT-SMELL-005"
+    name: "Long If-Elif Chains"
+    severity: low
+    threshold: 3
+    description: "Long conditional chains that could use polymorphism"
+
+  - id: "MAINT-SOLID-001"
+    name: "Single Responsibility Violation"
+    severity: low
+    threshold: 3
+    description: "Class handling more than 3 distinct responsibilities"
+
+  - id: "MAINT-SOLID-002"
+    name: "Open-Closed Violation"
+    severity: low
+    description: "Long if/elif chains instead of polymorphism"
+
+  - id: "MAINT-DOC-001"
+    name: "Low Comment Ratio"
+    severity: low
+    threshold: 0.05
+    description: "File has too few comments relative to code"
+
+  - id: "MAINT-DOC-002"
+    name: "Missing Docstring"
+    severity: low
+    description: "Function or class without docstring"
+
+  - id: "MAINT-MET-001"
+    name: "Low Maintainability Index"
+    severity: medium
+    threshold: 70
+    description: "Maintainability Index below acceptable threshold"
+
+  - id: "MAINT-MET-002"
+    name: "High Halstead Volume"
+    severity: medium
+    threshold: 1500
+    description: "Halstead Volume exceeds maintainable level"

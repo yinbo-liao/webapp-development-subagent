@@ -1,0 +1,43 @@
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+from typing import Optional
+from datetime import datetime
+
+
+class {{ schema_name }}Base(BaseModel):
+    """Base schema for {{ schema_name }}."""
+    model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
+
+{% for field in fields %}
+{%- if field.is_email %}
+    {{ field.name }}: {{ field.type }} = Field(
+        ..., pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    )
+{%- elif field.is_password %}
+    {{ field.name }}: {{ field.type }} = Field(..., min_length=8, max_length=128)
+{%- else %}
+    {{ field.name }}: {{ field.type }}
+{%- endif %}
+{%- endfor %}
+
+
+class {{ schema_name }}Create({{ schema_name }}Base):
+    """Schema for creating {{ schema_name }}."""
+    pass
+
+
+class {{ schema_name }}Update({{ schema_name }}Base):
+    """Schema for updating {{ schema_name }}."""
+    pass
+
+
+class {{ schema_name }}InDB({{ schema_name }}Base):
+    """Schema for {{ schema_name }} as stored in database."""
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    is_active: bool
+
+
+class {{ schema_name }}Response({{ schema_name }}InDB):
+    """Schema for API response - excludes sensitive fields."""
+    pass

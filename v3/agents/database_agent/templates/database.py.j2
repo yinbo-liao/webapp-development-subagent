@@ -1,0 +1,46 @@
+"""Async database configuration with SQLAlchemy 2.0.
+
+Uses async engine with connection pooling, session management,
+and Alembic-compatible Base.
+"""
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.orm import DeclarativeBase
+from typing import AsyncGenerator
+
+from app.core.config import settings
+
+engine = create_async_engine(
+    str(settings.DATABASE_URL).replace("postgresql://", "postgresql+asyncpg://"),
+    pool_size={{ pool_size | default(10) }},
+    max_overflow={{ max_overflow | default(20) }},
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    echo=settings.DEBUG,
+)
+
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
+)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency for async database sessions."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+async def init_db():
+    """Initialize database tables (for dev/testing, use Alembic in prod)."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)

@@ -1,0 +1,69 @@
+from fastapi import Request, HTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+import time
+import structlog
+
+logger = structlog.get_logger()
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Content-Security-Policy"] = "default-src 'self'"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        return response
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """Rate limiting middleware using sliding window."""
+
+    def __init__(self, app, max_requests: int = 100, window: int = 60):
+        super().__init__(app)
+        self.max_requests = max_requests
+        self.window = window
+        self._requests: dict = {}
+
+    async def dispatch(self, request: Request, call_next):
+        client_ip = request.client.host
+        current_time = time.time()
+
+        self._requests = {
+            ip: times
+            for ip, times in self._requests.items()
+            if any(current_time - t < self.window for t in times)
+        }
+
+        if client_ip in self._requests:
+            recent = [t for t in self._requests[client_ip] if current_time - t < self.window]
+            if len(recent) >= self.max_requests:
+                logger.warning("rate_limit_exceeded", client_ip=client_ip)
+                raise HTTPException(status_code=429, detail="Rate limit exceeded")
+            self._requests[client_ip] = recent + [current_time]
+        else:
+            self._requests[client_ip] = [current_time]
+
+        return await call_next(request)
+
+
+class AuditLogMiddleware(BaseHTTPMiddleware):
+    """Log all requests for audit purposes."""
+
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        response = await call_next(request)
+        duration = time.time() - start_time
+        logger.info(
+            "api_request",
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration_ms=round(duration * 1000, 2),
+        )
+        return response

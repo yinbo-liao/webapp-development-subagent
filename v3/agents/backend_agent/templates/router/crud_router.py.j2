@@ -1,0 +1,87 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List
+
+from app.core.database import get_db
+from app.core.security import get_current_user
+from app.core.audit import audit_log
+from app.core.rate_limiter import rate_limit
+from app.services.{{ service_name }}_service import {{ entity_name }}Service
+from app.schemas.{{ schema_file }} import {{ entity_name }}Create, {{ entity_name }}Update, {{ entity_name }}Response
+from sqlalchemy.ext.asyncio import AsyncSession
+
+router = APIRouter(prefix="/{{ route_prefix }}", tags=["{{ entity_name }}"])
+
+
+@router.get("/", response_model=List[{{ entity_name }}Response])
+@rate_limit(requests=100, window=60)
+@audit_log(action="list", resource="{{ resource_name }}")
+async def list_{{ resource_name }}s(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """List all {{ resource_name }}s with pagination.
+
+    - **skip**: Number of items to skip (default 0)
+    - **limit**: Maximum items to return (default 100, max 1000)
+    """
+    service = {{ entity_name }}Service(db)
+    return await service.get_all(skip=skip, limit=limit)
+
+
+@router.get("/{ {{- resource_name }}_id}", response_model={{ entity_name }}Response)
+@rate_limit(requests=100, window=60)
+@audit_log(action="read", resource="{{ resource_name }}")
+async def get_{{ resource_name }}(
+    {{ resource_name }}_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Get a specific {{ resource_name }} by ID."""
+    service = {{ entity_name }}Service(db)
+    item = await service.get_by_id({{ resource_name }}_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="{{ entity_name }} not found")
+    return item
+
+
+@router.post("/", response_model={{ entity_name }}Response, status_code=status.HTTP_201_CREATED)
+@rate_limit(requests=50, window=60)
+@audit_log(action="create", resource="{{ resource_name }}")
+async def create_{{ resource_name }}(
+    item: {{ entity_name }}Create,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Create a new {{ resource_name }}."""
+    service = {{ entity_name }}Service(db)
+    return await service.create(item, current_user.id)
+
+
+@router.put("/{ {{- resource_name }}_id}", response_model={{ entity_name }}Response)
+@rate_limit(requests=50, window=60)
+@audit_log(action="update", resource="{{ resource_name }}")
+async def update_{{ resource_name }}(
+    {{ resource_name }}_id: int,
+    item: {{ entity_name }}Update,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Update an existing {{ resource_name }}."""
+    service = {{ entity_name }}Service(db)
+    return await service.update({{ resource_name }}_id, item, current_user.id)
+
+
+@router.delete("/{ {{- resource_name }}_id}", status_code=status.HTTP_204_NO_CONTENT)
+@rate_limit(requests=30, window=60)
+@audit_log(action="delete", resource="{{ resource_name }}")
+async def delete_{{ resource_name }}(
+    {{ resource_name }}_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Delete a {{ resource_name }} (soft delete)."""
+    service = {{ entity_name }}Service(db)
+    await service.delete({{ resource_name }}_id, current_user.id)
+    return None

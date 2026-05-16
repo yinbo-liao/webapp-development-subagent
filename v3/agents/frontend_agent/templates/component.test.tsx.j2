@@ -1,0 +1,25 @@
+import { render, screen, fireEvent } from '@testing-library/react';
+import { {{ component.name }} } from './{{ component.name }}';
+import { {{ component.name }}Props } from './{{ component.name }}.types';
+
+describe('{{ component.name }}', () => {
+  const defaultProps: {{ component.name }}Props = {
+{% for prop in component.props %}
+    {{ prop.name }}: {{ prop.default_value | default('undefined') }},
+{% endfor %}
+  };
+
+  it('renders without crashing', () => {
+    render(<{{ component.name }} {...defaultProps} />);
+    expect(screen.getByTestId('{{ component.name|lower }}-component')).toBeInTheDocument();
+  });
+
+  it('is accessible', () => {
+    const { container } = render(<{{ component.name }} {...defaultProps} />);
+    expect(container.querySelector('[role="region"]')).toBeInTheDocument();
+  });
+
+  it('handles error state', () => {
+    // Test error boundary behavior
+  });
+});

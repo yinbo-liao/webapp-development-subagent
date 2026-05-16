@@ -1,0 +1,42 @@
+# Multi-stage build for production
+FROM python:3.11-slim as builder
+
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    {% if database == 'postgresql' %}postgresql-client{% endif %} \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Production stage
+FROM python:3.11-slim
+
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    {% if database == 'postgresql' %}postgresql-client{% endif %} \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /root/.local /home/appuser/.local
+COPY --chown=appuser:appgroup . .
+
+USER appuser
+
+ENV PATH=/home/appuser/.local/bin:$PATH
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PORT={{ port | default(8000) }}
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:{{ port | default(8000) }}/health || exit 1
+
+EXPOSE {{ port | default(8000) }}
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "{{ port | default(8000) }}"]

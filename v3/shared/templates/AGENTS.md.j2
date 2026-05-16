@@ -1,0 +1,35 @@
+---
+name: {{ project_name }}
+description: {{ description }}
+tech_stack: FastAPI, React 19, Vite 6, PostgreSQL, Redis
+---
+
+## Project Context
+{{ project_name }} — {{ description }}.
+
+## Architecture
+- **Backend**: FastAPI (Python 3.11+), async SQLAlchemy 2.0, Pydantic v2
+- **Frontend**: React 18+ + Vite + TypeScript 5, TanStack Query v5, Tailwind CSS
+- **Database**: PostgreSQL (primary), Redis (cache/queue)
+- **Real-time**: WebSocket for live updates
+
+## Code Standards
+- Backend: PEP 8, Black formatter, strict mypy, Pydantic v2 for all schemas
+- Frontend: ESLint + Prettier, strict TypeScript, functional components with hooks
+- API: RESTful, OpenAPI 3.1 auto-docs at `/docs`, versioning via `/api/v1/`
+- Testing: pytest (backend), Vitest + React Testing Library (frontend), Playwright (E2E)
+
+## Commands
+- `docker-compose up -d` — Start full stack
+- `cd backend && uvicorn app.main:app --reload` — Run backend dev server
+- `cd frontend && npm run dev` — Run frontend dev server
+- `pytest` — Run backend tests
+- `npm test` — Run frontend tests
+- `alembic upgrade head` — Run database migrations
+
+## Critical Rules
+- NEVER commit `.env` files or secrets
+- ALL database changes require Alembic migration
+- API responses must include proper error handling
+- Use async/await for all database and I/O operations
+- Validate all user input with Pydantic schemas

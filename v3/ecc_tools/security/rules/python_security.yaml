@@ -1,0 +1,102 @@
+# Python Security Detection Rules for ECC SAST Engine
+rules:
+  - id: "PY-SQL-001"
+    name: "SQL Injection via String Formatting"
+    severity: CRITICAL
+    cwe: "CWE-89"
+    owasp: ["A03:2021 - Injection"]
+    detection:
+      type: ast_pattern
+      method: detect_sql_injection_python
+    remediation: "Use parameterized queries: cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))"
+
+  - id: "PY-CMD-001"
+    name: "Command Injection"
+    severity: CRITICAL
+    cwe: "CWE-78"
+    owasp: ["A03:2021 - Injection"]
+    detection:
+      type: ast_pattern
+      dangerous_functions:
+        - os.system
+        - os.popen
+        - subprocess.call
+        - subprocess.Popen
+        - subprocess.run
+        - eval
+        - exec
+    remediation: "Use subprocess.run with shell=False and pass arguments as list"
+
+  - id: "PY-DES-001"
+    name: "Insecure Deserialization"
+    severity: CRITICAL
+    cwe: "CWE-502"
+    owasp: ["A08:2021 - Software and Data Integrity Failures"]
+    detection:
+      type: ast_pattern
+      dangerous_functions:
+        - pickle.loads
+        - yaml.load
+        - marshal.loads
+        - eval
+    remediation: "Use safe alternatives: json.loads(), yaml.safe_load()"
+
+  - id: "PY-PTH-001"
+    name: "Path Traversal"
+    severity: HIGH
+    cwe: "CWE-22"
+    owasp: ["A01:2021 - Broken Access Control"]
+    detection:
+      type: ast_pattern
+      dangerous_functions:
+        - open
+        - os.path.join
+        - os.path.abspath
+    remediation: "Validate and sanitize file paths using pathlib.Path.resolve()"
+
+  - id: "PY-SSRF-001"
+    name: "Server-Side Request Forgery"
+    severity: HIGH
+    cwe: "CWE-918"
+    owasp: ["A10:2021 - Server-Side Request Forgery (SSRF)"]
+    detection:
+      type: ast_pattern
+      http_libraries:
+        - requests.get
+        - requests.post
+        - urllib.request.urlopen
+        - http.client.HTTPConnection
+        - httpx.get
+        - httpx.post
+    remediation: "Validate URLs against allowlist, block internal IPs"
+
+  - id: "PY-SEC-CWE-798"
+    name: "Hardcoded Password"
+    severity: HIGH
+    cwe: "CWE-798"
+    owasp: ["A07:2021 - Identification and Authentication Failures"]
+    detection:
+      type: regex_pattern
+      patterns:
+        - '(?i)(password|passwd|pwd)\s*=\s*["\''][^"\'']{8,}["\'']'
+    remediation: "Use environment variables or secret management (Vault, AWS Secrets Manager)"
+
+  - id: "PY-TAINT-001"
+    name: "Tainted Data Flow"
+    severity: HIGH
+    cwe: "CWE-20"
+    owasp: ["A03:2021 - Injection"]
+    detection:
+      type: taint_analysis
+      sources:
+        - input
+        - request.args.get
+        - request.form.get
+        - request.json.get
+      sinks:
+        - execute
+        - system
+        - eval
+        - open
+        - urlopen
+    remediation: "Validate and sanitize all user inputs before use"

@@ -1,0 +1,65 @@
+name: new-project
+version: "1.0"
+description: "Full greenfield project initialization workflow"
+
+phases:
+  - name: requirements_analysis
+    agent: orchestrator
+    action: analyze_requirements
+    timeout_seconds: 60
+
+  - name: architecture_design
+    agent: orchestrator
+    action: design_architecture
+    depends_on: [requirements_analysis]
+    timeout_seconds: 120
+
+  - name: implementation
+    parallel:
+      - agent: frontend
+        action: implement
+        input: components.frontend
+      - agent: backend
+        action: implement
+        input: components.backend
+      - agent: database
+        action: implement
+        input: data_model
+      - agent: devops
+        action: setup
+        input: deployment_architecture
+    depends_on: [architecture_design]
+    timeout_seconds: 300
+
+  - name: ecc_scan
+    agent: orchestrator
+    action: run_ecc_scan
+    depends_on: [implementation]
+    tools: [security, stability, performance, maintainability]
+
+  - name: quality_gate
+    agent: orchestrator
+    action: evaluate_quality_gate
+    depends_on: [ecc_scan]
+    on_failure: block
+
+  - name: testing
+    agent: qa
+    action: run_tests
+    depends_on: [quality_gate]
+
+  - name: deployment
+    agent: devops
+    action: deploy
+    depends_on: [testing]
+
+quality_gates:
+  security:
+    max_critical: 0
+    max_high: 5
+  stability:
+    max_critical: 0
+  performance:
+    max_critical: 0
+  maintainability:
+    min_mi: 70

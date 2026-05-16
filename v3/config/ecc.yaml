@@ -1,0 +1,136 @@
+# Enterprise Code Compliance Configuration
+
+# Security Scanning
+security:
+  sast:
+    enabled: true
+    max_file_size_kb: 500
+    exclude_patterns:
+      - "*.min.js"
+      - "*.bundle.js"
+      - "node_modules/*"
+      - "venv/*"
+      - ".git/*"
+      - "dist/*"
+      - "build/*"
+    severity_threshold: MEDIUM
+    enable_taint_analysis: true
+    enable_dataflow_analysis: true
+
+  sca:
+    enabled: true
+    check_dependencies: true
+    vulnerability_database: "nvd"
+
+  secrets:
+    enabled: true
+    scan_patterns:
+      - api_keys
+      - passwords
+      - tokens
+      - private_keys
+
+  compliance:
+    owasp_top10: true
+    sans_top25: true
+    pci_dss: false
+    hipaa: false
+    gdpr: true
+
+# Stability Analysis
+stability:
+  static_analysis:
+    enabled: true
+    max_cyclomatic_complexity: 10
+    max_cognitive_complexity: 15
+    max_function_length: 50
+    max_nesting_depth: 4
+    max_class_length: 300
+    max_file_length: 500
+
+  error_handling:
+    enabled: true
+    require_exception_handling: true
+    no_bare_except: true
+    require_logging: true
+
+  type_safety:
+    enabled: true
+    min_type_coverage: 0.8
+    strict_mode: true
+
+  resource_management:
+    enabled: true
+    require_context_managers: true
+    detect_memory_leaks: true
+
+  concurrency:
+    enabled: true
+    detect_race_conditions: true
+    detect_deadlocks: true
+    check_async_patterns: true
+
+# Performance Profiling
+performance:
+  algorithm_analysis:
+    enabled: true
+    detect_nested_loops: true
+    detect_n_plus_one: true
+    max_loop_nesting: 3
+
+  memory_analysis:
+    enabled: true
+    detect_memory_leaks: true
+    detect_large_allocations: true
+    warn_on_list_comp_in_loop: true
+
+  database_analysis:
+    enabled: true
+    detect_n_plus_one_queries: true
+    require_pagination: true
+    max_query_complexity: 10
+
+  caching:
+    enabled: true
+    require_caching_for_expensive_ops: true
+    detect_cache_misses: true
+
+  async_analysis:
+    enabled: true
+    warn_blocking_in_async: true
+    detect_async_anti_patterns: true
+
+# Maintainability Analysis
+maintainability:
+  code_metrics:
+    enabled: true
+    min_maintainability_index: 70
+    max_halstead_volume: 1500
+    max_halstead_difficulty: 20
+
+  code_smells:
+    enabled: true
+    detect_god_classes: true
+    detect_long_methods: true
+    detect_feature_envy: true
+    max_parameter_count: 5
+    max_return_statements: 4
+
+  solid_principles:
+    enabled: true
+    check_srp: true
+    check_ocp: true
+    check_lsp: true
+    check_isp: true
+    check_dip: true
+
+  documentation:
+    enabled: true
+    require_docstrings: true
+    min_comment_ratio: 0.05
+    max_comment_ratio: 0.4
+
+  naming_conventions:
+    enabled: true
+    enforce_pep8: true
+    max_name_length: 30
