@@ -28,12 +28,13 @@ token forgery, stale args at commit, double commit.
 
 ## Build
 
-```text
-Y:\DSH\dsh-secure-mesh\node_modules\.bin\tsc.cmd -p gatekeeper/tsconfig.json
+```bash
+npm install     # @types/node + typescript
+npm run build   # tsc -p tsconfig.json → lib/
+npm test        # node tests/run.mjs
 ```
 
-The `typeRoots` entry points at the harness checkout's `@types/node`; replace it with a local
-`node_modules` when the package is moved into a real workspace.
+The committed `lib/` lets the tests run without a build; rebuild after changing `src/`.
 
 ## Wiring (next)
 
