@@ -1,0 +1,25 @@
+{
+  "contractId": "kpi-2026-014",
+  "feature": "closeout-comment-export",
+  "ownerFde": "fde:jdoe",
+  "hypothesis": "Self-serve CSV export reduces manual status requests by 30%",
+  "baseline": { "metric": "manual_status_requests_per_week", "value": 120, "window": "2026-09-01/2026-10-15" },
+  "target": { "metric": "manual_status_requests_per_week", "value": 84, "byDate": "2026-12-01" },
+  "guardrails": [
+    { "metric": "api_error_rate", "maxRegression": 0.002 },
+    { "metric": "p95_latency_ms", "maxRegression": 100 },
+    { "metric": "cost_per_success_usd", "maxRegression": 0.15 }
+  ],
+  "attribution": { "method": "interrupted_time_series", "confounders": ["holiday_freeze"], "control": "project-b" },
+  "dataSources": [
+    { "sourceId": "kpi-warehouse", "system": "posthog", "queryRef": "q-export-usage", "acl": "analytics-ro", "aggregated": true }
+  ],
+  "decisionRule": {
+    "continue": "target met and all guardrails held",
+    "iterate": "direction correct but magnitude short; refine and re-review",
+    "rollback": "guardrail breach, or no movement after two review windows"
+  },
+  "reviewDate": "2026-12-02",
+  "preRegisteredAt": "2026-11-10T09:00:00Z",
+  "signedBy": ["fde:jdoe", "product:asmith"]
+}

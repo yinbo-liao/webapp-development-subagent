@@ -1,0 +1,226 @@
+# Gate catalog v1.2 — gates are deterministic predicates over recorded evidence.
+#
+# A gate never trusts prose. Its inputs are:
+#   - phase artifacts (spec, ADR, diff manifest, KPI contract)
+#   - evidence records produced by trusted producers (CI, test runner, human)
+#   - the proposal/approval store
+# PASS requires every `required_evidence` entry to resolve, hash-match, be fresh,
+# and cover the gate's scope. TIMED_OUT and BLOCKED are distinct from FAIL and never pass.
+#
+# v1.1 adds GATE_G (business outcome, post-release) and GATE_R (routing release gate).
+# v1.2 adds per-gate metric vectors and the no-improvement rule from v3.0 §6.2.
+# v1.3 implements ADR-007: GATE_G blocks expansion only, never a verified release.
+version: 1.3
+freshness_default_hours: 24
+statuses: [PASS, FAIL, BLOCKED, TIMED_OUT]
+revision_policy:
+  max_revisions_per_gate: 2
+  max_full_loops: 2
+  escalate_on_no_improvement: true
+  metric_definition: "gate score = passed_requirements / total_requirements; improvement = strict increase"
+  no_improvement:
+    rule: "no metric in this gate's metrics vector improved by more than 5% AND at least one requirement still fails"
+    action: escalate
+    rationale: "v3.0 §6.2, adopted into the catalogue so 'make it better' cannot be a revision trigger"
+
+# Risk-tiered gate sets. The tier is selected by the effect matrix, never by the model.
+gate_sets:
+  T0:  { name: "docs / tests only",        gates: [GATE_A_LITE, GATE_C, GATE_D_UNIT] }
+  T1:  { name: "internal tooling",         gates: [GATE_A, GATE_C, GATE_D, GATE_F] }
+  T2:  { name: "reversible production",    gates: [GATE_A, GATE_B, GATE_C, GATE_D, GATE_E, GATE_F, GATE_M] }
+  T3:  { name: "schema / auth / money",    gates: [GATE_A, GATE_B, GATE_C, GATE_D_T3, GATE_E_TWO_APPROVERS, GATE_F, GATE_M] }
+
+gates:
+  GATE_A:
+    metrics: [acceptance_criteria_testable_ratio, unverified_assumptions_count]
+    name: "Specification complete"
+    owner: analyst
+    required_artifacts: [SpecArtifact]
+    required_evidence: []
+    predicate:
+      all:
+        - every_acceptance_criterion_has_test_method
+        - no_open_questions_unresolved
+        - every_assumption_has_verified_flag
+        - scope_in_out_declared
+    on_fail: revise
+    escalate_if: "unresolved ambiguity needs a human decision"
+
+  GATE_A_LITE:
+    metrics: [declared_scope_coverage_ratio]
+    name: "Scope declared (fast path)"
+    owner: analyst
+    required_artifacts: [SpecArtifact]
+    predicate:
+      all: [change_paths_subset_of_declared_scope, no_behavior_change_claim_without_test]
+    on_fail: revise
+
+  GATE_B:
+    metrics: [criteria_to_component_coverage, trust_boundary_control_ratio]
+    name: "Architecture safe and traceable"
+    owner: architect
+    required_artifacts: [ArchitectureArtifact]
+    required_evidence: [design-review]
+    predicate:
+      all:
+        - every_acceptance_criterion_maps_to_component
+        - every_trust_boundary_has_control
+        - no_adr_contradicts_stack_policy_pack
+        - data_classification_recorded
+    on_fail: revise
+
+  GATE_C:
+    metrics: [evidence_resolution_ratio, out_of_scope_changes]
+    name: "Patches are in scope and carry evidence"
+    owner: supervisor
+    required_artifacts: [DiffManifest]
+    required_evidence: [build, unit-tests]
+    predicate:
+      all:
+        - diff_paths_subset_of_scope_write_paths
+        - every_patch_has_evidence_record
+        - build_exit_code_zero
+        - unit_tests_pass_and_cover_changed_lines
+        - no_unrelated_refactor_in_diff
+    on_fail: revise
+
+  GATE_D:
+    metrics: [mandatory_evidence_present_ratio, high_or_critical_findings]
+    name: "Independent verification passes"
+    owner: verifier
+    required_artifacts: [VerificationReport]
+    required_evidence: [integration-tests, sast, dependency-scan, e2e-trace, coverage]
+    predicate:
+      all:
+        - all_mandatory_scans_present
+        - no_open_high_or_critical_finding
+        - e2e_covers_every_critical_path
+        - coverage_gate_met
+        - stack_policy_pack_checks_pass
+        - blind_review_recorded
+    on_fail: revise_or_block
+
+  GATE_D_UNIT:
+    metrics: [unit_tests_pass_ratio]
+    name: "Unit verification only (fast path)"
+    owner: verifier
+    required_evidence: [unit-tests, build]
+    predicate:
+      all: [unit_tests_pass, no_new_failing_tests]
+    on_fail: revise
+
+  GATE_D_T3:
+    metrics: [mandatory_evidence_present_ratio, medium_or_higher_findings, restore_drill_age_days]
+    name: "Hardened verification (schema / auth / money)"
+    owner: verifier
+    required_evidence: [integration-tests, sast, dependency-scan, e2e-trace, coverage, restore-drill, threat-model-review]
+    predicate:
+      all:
+        - gate_d_requirements
+        - restore_drill_within_90_days
+        - threat_model_reviewed_by_security
+        - no_open_medium_or_higher_finding
+    on_fail: block
+
+  GATE_E:
+    metrics: [approval_binding_valid_ratio, rollback_tested]
+    name: "Production change proposed and approved"
+    owner: human
+    required_evidence: [approval-record, rollback-plan, staging-smoke]
+    predicate:
+      all:
+        - proposal_args_hash_matches_commit_args
+        - approval_bound_to_args_and_intent_hash
+        - checklist_acknowledged
+        - idempotency_key_unused
+        - rollback_plan_tested
+        - approval_age_within_ttl
+    on_fail: block
+
+  GATE_E_TWO_APPROVERS:
+    metrics: [distinct_approver_count, requester_independence]
+    name: "High-blast-radius change: two independent approvers"
+    owner: human
+    required_evidence: [approval-record, approval-record-secondary, rollback-plan, staging-smoke]
+    predicate:
+      all:
+        - gate_e_requirements
+        - approvers_are_distinct_identities
+        - neither_approver_is_the_requester
+        - second_approver_is_security_or_platform
+        - fde_did_not_self_approve_t3
+        - checklist_acknowledged_by_both
+    on_fail: block
+
+  GATE_F:
+    metrics: [smoke_pass_ratio, observability_confirmed_ratio]
+    name: "Post-deploy verified or rolled back"
+    owner: operator
+    required_evidence: [deploy-run, smoke-tests, observability-check]
+    predicate:
+      all:
+        - smoke_passed_in_target_environment
+        - error_rate_and_latency_within_slo
+        - rollback_available_for_window
+        - alert_route_verified
+    on_fail: rollback
+
+  # ---------------------------------------------------------------------------
+  # v1.1 additions
+  # ---------------------------------------------------------------------------
+
+  GATE_G:
+    metrics: [kpi_delta_ratio, sample_size_sufficient, guardrail_breaches, cost_per_outcome_ratio]
+    name: "Business outcome review (post-release, scheduled)"
+    owner: fde
+    cadence: "scheduled 2-4 weeks after release; not part of the release state machine"
+    blocking: "rollout expansion only; never retroactively blocks a verified release"
+    release_blocking: false
+    expansion_blocking: true
+    required_artifacts: [BusinessKPIContract, OutcomeReview]
+    required_evidence: [kpi-snapshot, guardrail-snapshot, cost-attribution]
+    predicate:
+      all:
+        - contract_pre_registered_before_deploy
+        - baseline_and_target_recorded
+        - kpi_delta_measured_with_declared_attribution_method
+        - guardrails_within_declared_bounds
+        - cost_per_outcome_within_contract
+        - review_signed_by_fde_and_product_owner
+        - contract_source_is_authoritative
+        - release_was_not_blocked_by_this_gate
+    statuses: [PASS, ITERATE, ROLLBACK, INCONCLUSIVE]
+    on_fail: "ITERATE or ROLLBACK; INCONCLUSIVE extends once, then must decide"
+    notes: >-
+      INCONCLUSIVE is a first-class outcome and is never converted to PASS.
+      A KPI contract may not be edited after preRegisteredAt; a change requires a
+      new contract and a new deploy, so the outcome stays falsifiable.
+
+  GATE_R:
+    metrics: [correct_first_role_rate, over_dispatch_rate, under_dispatch_rate, escalation_timing_error_rate]
+    name: "Supervisor routing evaluation (release gate for routing changes)"
+    owner: engineering-lead
+    cadence: "on every supervisor prompt/model change; offline replay + optional live canary"
+    required_artifacts: [RoutingEvalReport]
+    required_evidence: [routing-eval-run]
+    predicate:
+      all:
+        - correct_first_role_rate_at_or_above_threshold
+        - unnecessary_dispatch_rate_at_or_below_threshold
+        - missed_escalation_count_zero
+        - gate_path_correctness_at_or_above_threshold
+        - cost_per_routed_task_within_budget
+    on_fail: block
+
+  GATE_M:
+    metrics: [provenance_present_ratio, unresolved_conflicts]
+    name: "Memory write gate (per artifact)"
+    owner: supervisor
+    required_evidence: [source-artifact, reviewer-ack]
+    predicate:
+      all:
+        - artifact_is_verified_by_a_gate
+        - provenance_recorded
+        - no_conflict_with_existing_entry_unresolved
+        - retention_and_acl_set
+    on_fail: block

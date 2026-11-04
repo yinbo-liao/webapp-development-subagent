@@ -1,0 +1,220 @@
+# Effect matrix v1.2 — the single source of truth for "who may do what".
+#
+# Consumed by two places, which must never disagree:
+#   1. the gatekeeper plugin's tools/pre-execute policy (enforcement)
+#   2. the role presets' system-prompt section (explanation)
+# A row that exists only in the prompt is a bug: tests assert prompt/policy parity.
+#
+# Autonomy: AUTO | DRY_RUN (produce the action, do not apply) | ASK (approval) | FORBIDDEN
+# Default for any unlisted (role, effect) pair is FORBIDDEN.
+#
+# v1.1 added the FDE as a human role and the business-outcome effects.
+# v1.2 implements ADR-003 (guardrails, not approvals): builder actions inside the
+# declared boundaries are AUTO; a boundary violation is DENY, not a permission prompt.
+# Human ASK is reserved for effects that cross a trust boundary (production deploy,
+# IAM, destructive data) and belong to the operator/approver roles.
+version: 1.2
+default: FORBIDDEN
+approval_model: guardrails-not-approvals
+boundary_violation_action: deny
+kill_switch: "flips every effect with severity > 0 to FORBIDDEN; reads stay AUTO"
+
+effects:
+  read_repo:              { severity: 0, description: "Read repository files and history" }
+  read_external:          { severity: 0, description: "Read web/docs/tickets (untrusted data)" }
+  read_analytics:         { severity: 0, description: "Read aggregated, ACL-filtered product analytics" }
+  read_kpi_source:        { severity: 0, description: "Query the authoritative KPI source (aggregated, read-only)" }
+  run_tests:              { severity: 0, description: "Execute tests and scanners in an isolated workspace" }
+  write_branch:           { severity: 1, description: "Write files on a dedicated feature branch/worktree" }
+  open_pr:                { severity: 1, description: "Open or update a pull request on the project remote" }
+  merge_integration:      { severity: 1, description: "Merge a feature branch into the integration branch after gates" }
+  merge_default_branch:   { severity: 3, description: "Merge the integration branch into the protected default branch" }
+  write_shared:           { severity: 2, description: "Write to a shared branch, shared environment, or shared data store" }
+  change_schema:          { severity: 3, description: "Create or apply a database migration / DDL" }
+  deploy_staging:         { severity: 2, description: "Deploy to an ephemeral or staging environment" }
+  deploy_prod:            { severity: 4, description: "Deploy to production or shift production traffic" }
+  write_prod_data:        { severity: 4, description: "Mutate production business data" }
+  delete_data:            { severity: 5, description: "Delete or truncate data, volumes, or backups" }
+  change_iam:             { severity: 4, description: "Change roles, permissions, secrets, or network policy" }
+  send_external:          { severity: 2, description: "Send email/Teams/webhook messages to third parties" }
+  spend_money:            { severity: 4, description: "Incur direct cost (cloud provisioning, purchases)" }
+  write_memory:           { severity: 1, description: "Write a verified artifact to the knowledge stores" }
+  publish_kpi_contract:   { severity: 2, description: "Pre-register a business KPI contract before a release" }
+  accept_outcome:         { severity: 2, description: "Accept an outcome review verdict (expand/iterate/rollback)" }
+  trip_kill_switch:       { severity: 5, description: "Freeze all effectful activity (human-only unless explicitly delegated)" }
+
+roles:
+  supervisor:
+    description: "Routes phases, assembles evidence, evaluates gates. Never produces artifacts."
+    tools: [dispatch_role, evaluate_gate, record_evidence, read_gate_state, escalate_human]
+    effects:
+      read_repo: AUTO
+      read_external: AUTO
+      read_kpi_source: ASK          # may read the contract's numbers, not the raw source
+      write_memory: ASK
+      publish_kpi_contract: FORBIDDEN
+      accept_outcome: FORBIDDEN
+      trip_kill_switch: ASK
+
+  analyst:
+    description: "Turns a request into a testable spec; flags every unverified assumption."
+    tools: [read, grep, glob, web_search, secure_fetch, write_spec, record_evidence]
+    effects:
+      read_repo: AUTO
+      read_external: AUTO
+      read_analytics: ASK
+      write_branch: AUTO            # spec commits only, path-scoped to docs/specs/**
+      open_pr: ASK
+      merge_integration: FORBIDDEN
+      write_memory: ASK
+    scope:
+      write_paths: ["docs/specs/**", "docs/adr/**"]
+
+  architect:
+    description: "Designs the smallest safe architecture; owns ADRs and trust boundaries."
+    tools: [read, grep, glob, read_adr, write_adr, record_evidence]
+    effects:
+      read_repo: AUTO
+      read_external: AUTO
+      write_branch: AUTO            # docs/adr/** only
+      change_schema: FORBIDDEN
+      write_memory: ASK
+    scope:
+      write_paths: ["docs/adr/**", "docs/design/**"]
+
+  builder:
+    description: >-
+      Implements one vertical slice on its own branch. Autonomous inside the
+      boundaries below; a boundary violation is denied, not escalated for approval.
+    profiles:
+      backend:  { stack: [fastapi, sqlalchemy, alembic, pytest] }
+      frontend: { stack: [react, vite, typescript, vitest, playwright] }
+      data:     { stack: [postgres, alembic, sql] }
+    tools: [read, grep, glob, edit, write, bash, pwsh, run_tests, record_evidence]
+    effects:
+      read_repo: AUTO
+      read_external: ASK            # docs only, via secure_fetch, allowlisted hosts
+      run_tests: AUTO
+      write_branch: AUTO            # own worktree, path allowlist
+      open_pr: AUTO
+      merge_integration: AUTO       # after GATE_C and GATE_D evidence, branch protected
+      merge_default_branch: FORBIDDEN
+      write_shared: FORBIDDEN
+      change_schema: AUTO           # guardrailed: expand/contract, migration check, no destructive DDL
+      deploy_staging: FORBIDDEN
+      deploy_prod: FORBIDDEN
+      write_prod_data: FORBIDDEN
+      send_external: FORBIDDEN
+    scope:
+      write_paths: ["services/**", "apps/**", "db/migrations/**", "tests/**"]
+
+  verifier:
+    description: "Independent verification. Writes tests and evidence; never production code."
+    modes: [blind, edge, acceptance, security, performance]
+    tools: [read, grep, glob, run_tests, run_scanner, deploy_ephemeral, record_evidence]
+    effects:
+      read_repo: AUTO
+      read_analytics: ASK           # aggregated only, for acceptance checks
+      read_kpi_source: ASK
+      run_tests: AUTO
+      write_branch: FORBIDDEN       # evidence store only
+      merge_integration: FORBIDDEN
+      deploy_staging: AUTO          # ephemeral, TTL-bounded, isolated
+      write_memory: ASK
+      open_pr: FORBIDDEN
+
+  operator:
+    description: "Deploys verified artifacts and observes production. No schema or IAM changes."
+    tools: [read, run_tests, deploy_staging, deploy_prod, rollback, read_observability, record_evidence]
+    effects:
+      read_repo: AUTO
+      read_analytics: ASK
+      read_kpi_source: AUTO
+      deploy_staging: AUTO
+      deploy_prod: ASK              # proposal + checklist; never a bare approve click
+      rollback: ASK                 # a pre-approved runbook may be AUTO
+      merge_default_branch: ASK     # release manager merge, after GATE_E/F
+      change_iam: FORBIDDEN
+      delete_data: FORBIDDEN
+      write_prod_data: FORBIDDEN
+      change_schema: FORBIDDEN
+
+  fde:
+    description: >-
+      HUMAN accountable authority for business scope, the KPI contract, exceptions,
+      and adoption. Not an agent. Approvals are recorded in the gatekeeper.
+    tools: []
+    effects:
+      read_repo: AUTO
+      read_external: AUTO
+      read_analytics: ASK
+      read_kpi_source: AUTO
+      publish_kpi_contract: ASK     # signed by FDE + product owner
+      accept_outcome: ASK           # expand / iterate / rollback
+      change_iam: ASK               # proposal-bound; never informal
+      write_prod_data: FORBIDDEN
+      deploy_prod: FORBIDDEN        # deploy authority stays with operator + approver
+      trip_kill_switch: ASK
+
+  human:
+    description: "Approves, rejects, trips the kill switch, and can override any decision."
+    effects:
+      "*": AUTO
+
+# ADR-003 boundaries. A guardrail is enforced as a deny rule or an evidence
+# requirement; it is never a permission prompt. Autonomy only relaxes the approval,
+# never the gate: a builder may write a migration (AUTO + guardrails) but the T3
+# gate set still applies before anything reaches a shared environment.
+guardrails:
+  builder:
+    write_branch:
+      - worktree_only
+      - path_allowlist_enforced
+      - secret_scan_clean
+      - no_force_push
+    merge_integration:
+      - gate_c_pass
+      - gate_d_pass
+      - branch_protected
+      - linear_history
+    change_schema:
+      - expand_contract_only
+      - migration_check_evidence
+      - no_destructive_ddl
+      - no_type_narrowing
+      - down_revision_required
+    dependencies:
+      - lockfile_pinned
+      - allowlist_only
+      - license_check
+      - registry_proxy_only
+    egress:
+      - registry_proxy_only
+      - docs_allowlist_via_secure_fetch
+    budget:
+      - per_dispatch_ceiling
+      - per_run_ceiling
+      - stop_on_no_progress
+  verifier:
+    deploy_staging:
+      - ephemeral_only
+      - ttl_bounded
+      - isolated_network
+  operator:
+    deploy_prod:
+      - proposal_bound
+      - checklist_acknowledged
+      - rollback_tested
+      - canary_first
+    rollback:
+      - runbook_only
+      - approved_incident
+  all:
+    secrets:
+      - no_repo_secrets
+      - no_production_credentials_outside_operator
+      - credential_broker_per_call
+    gates:
+      - cannot_disable_a_gate
+      - cannot_reset_a_revision_counter
+      - cannot_write_own_evidence
