@@ -8,6 +8,10 @@ Enterprise Web Development System v2.0 — a Python 3.11+ multi-agent code gener
 
 When `ANTHROPIC_API_KEY` is set in the environment, agents use structured LLM generation with an ECC feedback loop (generate → validate → fix → repeat, up to 3 iterations). Without an API key, agents fall back to Jinja2 template-based generation.
 
+> **Concept of record v3.1.** [`concept/`](./concept/) is the authoritative design: evidence records, gates
+> A–G/R/M, guardrails-not-approvals, FDE authority, KPI contract, and the migration mapping from this Python
+> implementation. It does not change the CLI or templates yet; see [`concept/MIGRATION.md`](./concept/MIGRATION.md).
+
 ## Commands
 
 ```bash

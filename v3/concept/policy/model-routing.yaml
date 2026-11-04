@@ -1,0 +1,96 @@
+# Model routing policy — ADR-004
+#
+# One explicit route per role class. No agent, prompt, or tool argument selects a
+# model at runtime; the gatekeeper resolves the route from this file and records it
+# in evidence. Evaluations are comparable only within the same route and tool versions.
+version: 1
+status: accepted
+selection:
+  by: [role, risk_tier]
+  runtime_override: forbidden
+  record_in: "evidence.environment.route"
+  fallback_order: declared_chain
+  max_fallback_attempts: 2
+classes:
+  reasoning-strong:
+    used_by: [supervisor, architect]
+    requirements: [long_context, reliable_tool_calls, structured_output]
+    cost_ceiling_usd_per_run: 3.00
+  fast:
+    used_by: [analyst, operator]
+    requirements: [low_latency, low_cost, adequate_reasoning]
+    cost_ceiling_usd_per_run: 0.60
+  coding:
+    used_by: [builder]
+    requirements: [code_generation, repository_scale_context, test_loop]
+    cost_ceiling_usd_per_run: 2.00
+  verification-independent:
+    used_by: [verifier]
+    requirements: [different_provider_from_builder, strong_review, structured_output]
+    cost_ceiling_usd_per_run: 1.50
+
+# Fill the candidates at deployment; the placeholder is deliberate so no provider is
+# hard-coded into the design. Every route names a primary and an ordered fallback.
+routes:
+  supervisor:
+    class: reasoning-strong
+    primary: "<provider-a>/<reasoning-model>"
+    fallback: ["<provider-b>/<reasoning-model>"]
+  analyst:
+    class: fast
+    primary: "<provider-a>/<fast-model>"
+    fallback: ["<provider-b>/<fast-model>"]
+  architect:
+    class: reasoning-strong
+    primary: "<provider-a>/<reasoning-model>"
+    fallback: ["<provider-b>/<reasoning-model>"]
+  builder:
+    class: coding
+    primary: "<provider-a>/<coding-model>"
+    fallback: ["<provider-b>/<coding-model>"]
+  verifier:
+    class: verification-independent
+    primary: "<provider-b>/<review-model>"
+    fallback: ["<provider-c>/<review-model>"]   # must not be provider-a
+  operator:
+    class: fast
+    primary: "<provider-a>/<fast-model>"
+    fallback: ["<provider-b>/<fast-model>"]
+
+risk_tier_overrides:
+  T3:
+    verifier:
+      class: verification-independent
+      require_provider_diversity: true
+      require_strongest_available: true
+    builder:
+      require_strongest_available: true
+
+invariants:
+  - id: verifier-independence
+    rule: "verifier.provider != builder.provider for every run"
+    on_violation: "block with PROVIDER_INDEPENDENCE_UNAVAILABLE"
+  - id: no-ad-hoc-selection
+    rule: "no tool argument, prompt section, or subagent message may carry provider or model"
+    on_violation: "deny the call and audit it"
+  - id: route-pinning
+    rule: "the resolved route is recorded in evidence and is part of the run comparability key"
+  - id: fallback-preserves-independence
+    rule: "a fallback that would share the builder's provider is not attempted; the run blocks instead"
+
+fallback_policy:
+  retryable: [rate_limit, provider_5xx, network_timeout]
+  non_retryable: [invalid_request, content_policy, authentication]
+  independence_check: every_attempt
+  on_exhaustion: "block the run, preserve checkpoint, escalate to a human"
+
+cost_controls:
+  per_run_cap_usd: 10.00
+  per_role_daily_cap_usd: 150.00
+  on_exceed: "stop the run, checkpoint, escalate (BUDGET_EXHAUSTED)"
+  report: "weekly cost per success, per role and route"
+
+routing_changes:
+  gate: GATE_R
+  requires: [offline_routing_eval, route_diff, cost_impact, rollback_plan]
+  record: "decision record + evidence"

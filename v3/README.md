@@ -2,6 +2,21 @@
 
 A production-grade subagent system for web development with integrated Enterprise Code Compliance (ECC) tools.
 
+## Concept v3.1 — architecture of record
+
+The design of record is [`concept/CONCEPT.md`](./concept/CONCEPT.md). It keeps this system's strengths —
+specialized agents, ECC scanning, quality gates — and adds what was missing: hash-verified evidence records,
+deterministic gates that block on evidence rather than prose, builder guardrails instead of per-action
+approvals, an explicit human FDE role with a business KPI contract, and a scheduled outcome review that
+blocks rollout expansion rather than sitting inside a release run.
+
+- **Decisions:** [`concept/DECISIONS.md`](./concept/DECISIONS.md) — ADR-001–007 accepted, ADR-008 proposed.
+- **Migration:** [`concept/MIGRATION.md`](./concept/MIGRATION.md) — agent → role, phase → gate, ECC → evidence.
+- **Policies:** [`concept/effect-matrix.yaml`](./concept/effect-matrix.yaml), [`concept/gate-catalog.yaml`](./concept/gate-catalog.yaml).
+
+This Python implementation remains the running system during migration; the concept does not change the CLI,
+the templates, or generated applications.
+
 ## Features
 
 - **Multi-Agent Architecture**: Specialized agents for frontend, backend, database, QA, and DevOps

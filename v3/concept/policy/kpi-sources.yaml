@@ -1,0 +1,41 @@
+# KPI source registry — ADR-006
+#
+# Exactly one authoritative source per KPI contract. Telemetry collects events; the
+# warehouse computes the KPI; operational systems supply guardrails. A contract may
+# reference only sources marked `role: authoritative`.
+version: 1
+status: accepted
+rule: "one contract, one authoritative source; disputes are resolved by the source owner"
+sources:
+  - id: kpi-warehouse
+    system: "<data-warehouse>"
+    role: authoritative
+    owner: "<data-owner>"
+    acl: "analytics-ro"
+    aggregation: required
+    refresh_sla: "PT6H"
+    pii: "none (aggregated only)"
+    notes: "Default source for business KPIs in the pilot."
+  - id: kpi-operational
+    system: "<operational-metrics-db>"
+    role: authoritative
+    owner: "<sre-owner>"
+    acl: "metrics-ro"
+    aggregation: required
+    refresh_sla: "PT1H"
+    pii: "none"
+    notes: "Guardrail metrics: error rate, latency, saturation."
+  - id: product-telemetry
+    system: "<telemetry-platform>"
+    role: collection-only
+    owner: "<product-analytics-owner>"
+    acl: "analytics-write"
+    aggregation: "event-level; must be aggregated before KPI computation"
+    pii: "event-level identifiers; never enters a contract"
+    notes: "Collects events; not a contract source in v1."
+contract_requirements:
+  sourceId: "must reference an authoritative source above"
+  queryRef: "pinned query, versioned"
+  acl: "read-only, aggregated"
+  refresh_sla: "must satisfy the review cadence"
+  owner: "accountable for the number"

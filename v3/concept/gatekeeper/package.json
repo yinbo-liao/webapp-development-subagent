@@ -1,0 +1,17 @@
+{
+  "name": "@acme/dsh-gatekeeper-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Policy, proposal and commit-token core for the DSH gatekeeper (reference implementation).",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node tests/run.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.internal/dsh-engineering-agent/business-kpi.schema.json",
+  "title": "BusinessKPIContract",
+  "description": "Pre-registered business outcome contract for one feature release. Signed before deployment; immutable afterwards. Gate GATE_G reviews the outcome against this contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractId", "feature", "ownerFde", "hypothesis",
+    "baseline", "target", "guardrails", "attribution",
+    "dataSources", "decisionRule", "reviewDate", "preRegisteredAt", "signedBy"
+  ],
+  "properties": {
+    "contractId": { "type": "string", "pattern": "^kpi-[0-9]{4}-[0-9]{3}$" },
+    "feature": { "type": "string", "minLength": 3, "maxLength": 120 },
+    "ownerFde": { "type": "string", "pattern": "^fde:[a-z0-9._-]+$" },
+    "hypothesis": { "type": "string", "minLength": 20, "maxLength": 500 },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "value", "window"],
+      "properties": {
+        "metric": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "value": { "type": "number" },
+        "window": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}/[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "value", "byDate"],
+      "properties": {
+        "metric": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "value": { "type": "number" },
+        "byDate": { "type": "string", "format": "date" }
+      }
+    },
+    "guardrails": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["metric", "maxRegression"],
+        "properties": {
+          "metric": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "maxRegression": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "attribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "properties": {
+        "method": { "enum": ["pre_post", "holdout", "ab_test", "interrupted_time_series"] },
+        "control": { "type": "string" },
+        "confounders": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "dataSources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sourceId", "system", "queryRef", "acl", "aggregated"],
+        "properties": {
+          "sourceId": { "type": "string", "pattern": "^kpi-[a-z0-9-]+$" },
+          "system": { "type": "string" },
+          "queryRef": { "type": "string" },
+          "acl": { "type": "string" },
+          "aggregated": { "type": "boolean" }
+        }
+      }
+    },
+    "decisionRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["continue", "iterate", "rollback"],
+      "properties": {
+        "continue": { "type": "string", "minLength": 10 },
+        "iterate": { "type": "string", "minLength": 10 },
+        "rollback": { "type": "string", "minLength": 10 }
+      }
+    },
+    "reviewDate": { "type": "string", "format": "date" },
+    "preRegisteredAt": { "type": "string", "format": "date-time" },
+    "signedBy": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^(fde|product|security|engineering):[a-z0-9._-]+$" }
+    }
+  }
+}
